@@ -44,7 +44,7 @@ consensus/
     └── README.md            # one-line stub marking future scope
 ```
 
-- Go: 1.24.1 (installed).
+- Go: 1.25 (required by the Go MCP SDK; obtained via `GOTOOLCHAIN=auto` if the local default is older).
 - Module path: `github.com/nathanaday/consensus/mcp` (includes the subdir so
   imports and `go install` resolve correctly with go.mod under `mcp/`).
 

@@ -6,7 +6,7 @@
 
 **Architecture:** Monorepo with two surfaces — `mcp/` (all Go) and `app/` (future). The Go module keeps `cmd/server/main.go` for process lifecycle only and puts every tool in `internal/tools/`, one file per tool. A single `tools.Register(server)` seam adds all tools so `main.go` never changes as tools are added. Correctness is proven two ways: an in-memory client/server test and a real subprocess stdio test.
 
-**Tech Stack:** Go 1.24.1, `github.com/modelcontextprotocol/go-sdk/mcp` (v1.6.1).
+**Tech Stack:** Go 1.25 (required by the MCP SDK; obtained via `GOTOOLCHAIN=auto` if the local default is older), `github.com/modelcontextprotocol/go-sdk/mcp` (v1.6.1).
 
 ## Global Constraints
 
