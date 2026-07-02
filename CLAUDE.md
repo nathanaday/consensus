@@ -43,3 +43,4 @@ Tests use the SDK two ways: an in-memory transport for fast per-tool round-trips
 
 - READMEs are user-owned — do not create or rewrite `README.md` files unless asked.
 - Design specs live in `docs/superpowers/specs/`, implementation plans in `docs/superpowers/plans/`.
+- Commit messages must not include a `Co-Authored-By: Claude` trailer (or any "Generated with Claude Code" line). Keep history attributed solely to the repo owner.
