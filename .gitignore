@@ -39,3 +39,8 @@ coverage.*
 # Built server binary (if produced via `go build -o`)
 /mcp/server
 
+# Agent working docs
+# ==================
+/CLAUDE.md
+/docs/superpowers/
+
