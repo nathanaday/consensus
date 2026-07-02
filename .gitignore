@@ -28,3 +28,14 @@ ehthumbs.db
 .trash/
 .Trash-*
 
+# Go
+# ==
+# Compiled binaries and test/coverage artifacts
+*.exe
+*.exe~
+*.test
+*.out
+coverage.*
+# Built server binary (if produced via `go build -o`)
+/mcp/server
+
