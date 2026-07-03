@@ -2,11 +2,18 @@ package store
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
 )
+
+// catalogPut records an entry. It is a package var so the catalog-write failure
+// path (which SaveDataset cleans up after) can be exercised in tests; the
+// directory-sharing between the Parquet write and the catalog makes that
+// failure impractical to trigger through the filesystem alone.
+var catalogPut = (*Catalog).Put
 
 // SaveRequest carries everything needed to persist one dataset. It is expressed
 // in dataset-level terms so store stays independent of ingestion.
@@ -36,7 +43,8 @@ func SaveDataset(cfg Config, req SaveRequest) (dataset.Entry, error) {
 	}
 	id := cat.AllocateID(base)
 
-	if err := WriteRows(filepath.Join(cfg.Dir, id+".parquet"), req.Rows); err != nil {
+	parquetPath := filepath.Join(cfg.Dir, id+".parquet")
+	if err := WriteRows(parquetPath, req.Rows); err != nil {
 		return dataset.Entry{}, err
 	}
 
@@ -50,7 +58,10 @@ func SaveDataset(cfg Config, req SaveRequest) (dataset.Entry, error) {
 		RowCount:        req.RowCount,
 		TimeRange:       req.TimeRange,
 	}
-	if err := cat.Put(entry); err != nil {
+	if err := catalogPut(cat, entry); err != nil {
+		// The catalog entry is the commit point; without it the Parquet file is
+		// unreachable, so remove it rather than leave an orphan behind.
+		_ = os.Remove(parquetPath)
 		return dataset.Entry{}, fmt.Errorf("record catalog entry: %w", err)
 	}
 	return entry, nil
