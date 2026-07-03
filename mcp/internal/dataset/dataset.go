@@ -14,3 +14,16 @@ type TimeRange struct {
 	Start string `json:"start"`
 	End   string `json:"end"`
 }
+
+// Entry is a catalog record describing one stored dataset. It records schema
+// and stats only, never data values.
+type Entry struct {
+	ID              string    `json:"id"`
+	Kind            string    `json:"kind"`
+	SourcePath      string    `json:"source_path"`
+	CreatedAt       string    `json:"created_at"`
+	TimestampColumn string    `json:"timestamp_column"`
+	SeriesIDs       []string  `json:"series_ids"`
+	RowCount        int       `json:"row_count"`
+	TimeRange       TimeRange `json:"time_range"`
+}
