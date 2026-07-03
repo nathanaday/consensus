@@ -15,7 +15,7 @@ type IngestCSVInput struct {
 	Path         string   `json:"path" jsonschema:"local filesystem path to the CSV file to ingest"`
 	Name         string   `json:"name,omitempty" jsonschema:"optional dataset id; defaults to a slug of the filename"`
 	TimestampCol string   `json:"timestamp_col,omitempty" jsonschema:"column to use as the timestamp; auto-detected when omitted"`
-	ValueCols    []string `json:"value_cols,omitempty" jsonschema:"columns to treat as value series; auto-detected (all numeric columns) when omitted"`
+	ValueCols    []string `json:"value_cols,omitempty" jsonschema:"columns to treat as value series; auto-detected when omitted from the first data row's numeric cells. Pass explicitly if a column's first value may be blank or non-numeric"`
 }
 
 type IngestCSVTimeRange struct {
@@ -31,7 +31,7 @@ type IngestCSVDetected struct {
 type IngestCSVOutput struct {
 	DatasetID string             `json:"dataset_id"`
 	SeriesIDs []string           `json:"series_ids"`
-	RowCount  int                `json:"row_count"`
+	RowCount  int                `json:"row_count" jsonschema:"number of stored long-format rows (one per series per timestamp), not the number of source CSV timestamps"`
 	TimeRange IngestCSVTimeRange `json:"time_range"`
 	Detected  IngestCSVDetected  `json:"detected"`
 }
