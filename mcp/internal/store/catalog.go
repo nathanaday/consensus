@@ -78,13 +78,39 @@ func (c *Catalog) AllocateID(base string) string {
 }
 
 // Put adds e and rewrites catalog.json.
+//
+// The write is atomic: the new content is written to a temp file in the same
+// directory and renamed over catalog.json, so a reader or a crash mid-write
+// never observes a truncated or partial file.
 func (c *Catalog) Put(e dataset.Entry) error {
 	c.entries[e.ID] = e
 	b, err := json.MarshalIndent(c.entries, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal catalog: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(c.dir, catalogFile), b, 0o644); err != nil {
+
+	tmp, err := os.CreateTemp(c.dir, catalogFile+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp catalog: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("write temp catalog: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("write temp catalog: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("write catalog: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, filepath.Join(c.dir, catalogFile)); err != nil {
+		os.Remove(tmpPath)
 		return fmt.Errorf("write catalog: %w", err)
 	}
 	return nil

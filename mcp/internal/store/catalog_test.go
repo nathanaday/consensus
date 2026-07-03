@@ -1,6 +1,9 @@
 package store
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
@@ -46,5 +49,47 @@ func TestCatalogAllocateAndPersist(t *testing.T) {
 	}
 	if !reloaded.Has("readings") {
 		t.Errorf("reloaded catalog missing readings entry")
+	}
+}
+
+func TestPutWritesAtomicallyNoLeftoverTemp(t *testing.T) {
+	dir := t.TempDir()
+	cat, err := LoadCatalog(dir)
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+
+	if err := cat.Put(dataset.Entry{ID: "readings", Kind: "measurement"}); err != nil {
+		t.Fatalf("Put 1: %v", err)
+	}
+	if err := cat.Put(dataset.Entry{ID: "readings-2", Kind: "measurement"}); err != nil {
+		t.Fatalf("Put 2: %v", err)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Name() != catalogFile {
+		names := make([]string, len(entries))
+		for i, e := range entries {
+			names[i] = e.Name()
+		}
+		t.Fatalf("dir contains %v, want only %q", names, catalogFile)
+	}
+
+	b, err := os.ReadFile(filepath.Join(dir, catalogFile))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var parsed map[string]dataset.Entry
+	if err := json.Unmarshal(b, &parsed); err != nil {
+		t.Fatalf("catalog.json is not valid JSON: %v", err)
+	}
+	if _, ok := parsed["readings"]; !ok {
+		t.Errorf("catalog.json missing %q entry", "readings")
+	}
+	if _, ok := parsed["readings-2"]; !ok {
+		t.Errorf("catalog.json missing %q entry", "readings-2")
 	}
 }
