@@ -1,6 +1,7 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,6 +9,28 @@ import (
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
 )
+
+// TestSaveDatasetRemovesParquetWhenCatalogWriteFails verifies that a catalog
+// write failure does not leave an orphaned Parquet file with no catalog entry
+// pointing at it.
+func TestSaveDatasetRemovesParquetWhenCatalogWriteFails(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+
+	orig := catalogPut
+	catalogPut = func(*Catalog, dataset.Entry) error { return errors.New("boom") }
+	defer func() { catalogPut = orig }()
+
+	_, err := SaveDataset(cfg, SaveRequest{
+		SourcePath: "/abs/readings.csv",
+		Rows:       []dataset.Row{{Timestamp: 1, SeriesID: "s", Value: 1}},
+	})
+	if err == nil {
+		t.Fatal("expected an error when the catalog write fails")
+	}
+	if _, statErr := os.Stat(filepath.Join(cfg.Dir, "readings.parquet")); !os.IsNotExist(statErr) {
+		t.Errorf("orphaned parquet left behind after catalog failure: stat err = %v", statErr)
+	}
+}
 
 func TestSaveDatasetWritesParquetAndCatalog(t *testing.T) {
 	cfg := Config{Dir: t.TempDir()}

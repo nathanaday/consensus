@@ -4,7 +4,7 @@ package dataset
 // Row is one measurement in the canonical long layout. Timestamp is UTC epoch
 // milliseconds.
 type Row struct {
-	Timestamp int64   `parquet:"timestamp" json:"timestamp"`
+	Timestamp int64   `parquet:"timestamp,timestamp(millisecond:utc)" json:"timestamp"`
 	SeriesID  string  `parquet:"series_id" json:"series_id"`
 	Value     float64 `parquet:"value" json:"value"`
 }
