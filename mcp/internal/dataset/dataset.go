@@ -35,4 +35,10 @@ type Entry struct {
 	// per timestamp), not the number of source CSV timestamps.
 	RowCount  int       `json:"row_count"`
 	TimeRange TimeRange `json:"time_range"`
+	// ParentID is the id of the dataset this one was copied/derived from;
+	// "" marks a root loaded directly from a source file.
+	ParentID string `json:"parent_id"`
+	// Origin describes how this dataset came to be: "csv" for a root ingest,
+	// "copy" for a plain copy, or a transform description for a derived dataset.
+	Origin string `json:"origin,omitempty"`
 }
