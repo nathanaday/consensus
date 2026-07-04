@@ -36,6 +36,8 @@ var timestampLayouts = []string{
 	"2006-01-02",
 	"01/02/2006 15:04:05",
 	"01/02/2006",
+	"1/2/2006 15:04:05",
+	"1/2/2006",
 }
 
 func parseTimestamp(s string) (time.Time, bool) {
