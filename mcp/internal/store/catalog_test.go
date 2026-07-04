@@ -93,3 +93,28 @@ func TestPutWritesAtomicallyNoLeftoverTemp(t *testing.T) {
 		t.Errorf("catalog.json missing %q entry", "readings-2")
 	}
 }
+
+func TestCatalogEntriesSortedByID(t *testing.T) {
+	dir := t.TempDir()
+	cat, err := LoadCatalog(dir)
+	if err != nil {
+		t.Fatalf("LoadCatalog: %v", err)
+	}
+	for _, id := range []string{"zulu", "alpha", "mike"} {
+		if err := cat.Put(dataset.Entry{ID: id, Kind: "measurement"}); err != nil {
+			t.Fatalf("Put %q: %v", id, err)
+		}
+	}
+
+	entries := cat.Entries()
+	if len(entries) != 3 {
+		t.Fatalf("entries = %d, want 3", len(entries))
+	}
+	got := []string{entries[0].ID, entries[1].ID, entries[2].ID}
+	want := []string{"alpha", "mike", "zulu"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("entries order = %v, want %v", got, want)
+		}
+	}
+}

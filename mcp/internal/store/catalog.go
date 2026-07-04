@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
@@ -58,6 +59,20 @@ func LoadCatalog(dir string) (*Catalog, error) {
 func (c *Catalog) Has(id string) bool {
 	_, ok := c.entries[id]
 	return ok
+}
+
+// Entries returns every catalog entry, sorted by id for stable output.
+func (c *Catalog) Entries() []dataset.Entry {
+	ids := make([]string, 0, len(c.entries))
+	for id := range c.entries {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	out := make([]dataset.Entry, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, c.entries[id])
+	}
+	return out
 }
 
 // AllocateID returns base if free, otherwise base-2, base-3, ... Uncommitted
