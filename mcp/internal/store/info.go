@@ -35,10 +35,10 @@ func ListStoreFiles(dir string) ([]string, error) {
 	}
 	files := make([]string, 0, len(ents))
 	for _, e := range ents {
-		if e.IsDir() {
+		if !e.Type().IsRegular() {
 			continue
 		}
-		if strings.Contains(e.Name(), ".tmp-") {
+		if strings.HasPrefix(e.Name(), catalogFile+".tmp-") {
 			continue
 		}
 		files = append(files, e.Name())
