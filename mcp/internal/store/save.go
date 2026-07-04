@@ -21,7 +21,7 @@ type SaveRequest struct {
 	NameOverride    string
 	SourcePath      string
 	TimestampColumn string
-	SeriesIDs       []string
+	Series          []dataset.Series
 	RowCount        int
 	TimeRange       dataset.TimeRange
 	Rows            []dataset.Row
@@ -54,7 +54,7 @@ func SaveDataset(cfg Config, req SaveRequest) (dataset.Entry, error) {
 		SourcePath:      req.SourcePath,
 		CreatedAt:       time.Now().UTC().Format(time.RFC3339),
 		TimestampColumn: req.TimestampColumn,
-		SeriesIDs:       req.SeriesIDs,
+		Series:          req.Series,
 		RowCount:        req.RowCount,
 		TimeRange:       req.TimeRange,
 	}
