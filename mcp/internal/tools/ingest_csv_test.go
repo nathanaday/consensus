@@ -39,7 +39,7 @@ func TestIngestCSVStoresDatasetAndSummarizes(t *testing.T) {
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "ingest_csv",
-		Arguments: map[string]any{"path": csvPath},
+		Arguments: map[string]any{"path": csvPath, "units": map[string]any{"temp_c": "celsius"}},
 	})
 	if err != nil {
 		t.Fatalf("call tool: %v", err)
@@ -55,6 +55,12 @@ func TestIngestCSVStoresDatasetAndSummarizes(t *testing.T) {
 	}
 	if !strings.Contains(s, `"row_count":4`) {
 		t.Errorf("expected row_count 4 in %s", s)
+	}
+	if !strings.Contains(s, `"id":"temp_c","unit":"celsius"`) {
+		t.Errorf("expected temp_c series carrying its unit in %s", s)
+	}
+	if !strings.Contains(s, `"id":"humidity"`) {
+		t.Errorf("expected humidity series in %s", s)
 	}
 
 	if _, err := os.Stat(filepath.Join(storeDir, "readings.parquet")); err != nil {

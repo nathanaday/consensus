@@ -37,7 +37,7 @@ func TestSaveDatasetWritesParquetAndCatalog(t *testing.T) {
 	req := SaveRequest{
 		SourcePath:      "/abs/readings.csv",
 		TimestampColumn: "time",
-		SeriesIDs:       []string{"temp_c"},
+		Series:          []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
 		RowCount:        1,
 		TimeRange:       dataset.TimeRange{Start: "2026-01-01T00:00:00Z", End: "2026-01-01T00:00:00Z"},
 		Rows:            []dataset.Row{{Timestamp: 1767225600000, SeriesID: "temp_c", Value: 12.4}},
@@ -52,6 +52,9 @@ func TestSaveDatasetWritesParquetAndCatalog(t *testing.T) {
 	}
 	if entry.Kind != "measurement" {
 		t.Errorf("kind = %q, want measurement", entry.Kind)
+	}
+	if len(entry.Series) != 1 || entry.Series[0].ID != "temp_c" || entry.Series[0].Unit != "celsius" {
+		t.Errorf("series = %+v, want [{temp_c celsius}]", entry.Series)
 	}
 	if _, err := time.Parse(time.RFC3339, entry.CreatedAt); err != nil {
 		t.Errorf("created_at not RFC3339: %q", entry.CreatedAt)

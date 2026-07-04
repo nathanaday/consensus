@@ -15,6 +15,13 @@ type TimeRange struct {
 	End   string `json:"end"`
 }
 
+// Series identifies one value stream in a dataset and its optional unit of
+// measurement. An empty Unit means the unit was not recorded at ingest.
+type Series struct {
+	ID   string `json:"id"`
+	Unit string `json:"unit,omitempty"`
+}
+
 // Entry is a catalog record describing one stored dataset. It records schema
 // and stats only, never data values.
 type Entry struct {
@@ -23,7 +30,7 @@ type Entry struct {
 	SourcePath      string   `json:"source_path"`
 	CreatedAt       string   `json:"created_at"`
 	TimestampColumn string   `json:"timestamp_column"`
-	SeriesIDs       []string `json:"series_ids"`
+	Series          []Series `json:"series"`
 	// RowCount is the number of canonical long-format rows (one per series
 	// per timestamp), not the number of source CSV timestamps.
 	RowCount  int       `json:"row_count"`
