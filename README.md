@@ -30,10 +30,20 @@ MCP client, not run by hand.
 
 ### Build
 
+Compile and test everything:
+
 ```bash
 cd mcp
 go build ./...
 go test ./...
+```
+
+To produce a launchable binary for a client to run, build it to `mcp/server`
+(that path is gitignored):
+
+```bash
+cd mcp
+go build -o server ./cmd/server
 ```
 
 ### Connect it to a client
@@ -51,6 +61,18 @@ Register the server with any MCP client. The command runs it over stdio:
   }
 }
 ```
+
+### Register with Claude Code
+
+Point Claude Code at the compiled binary:
+
+```bash
+claude mcp add consensus /path/to/consensus/mcp/server
+```
+
+After rebuilding the binary (`go build -o server ./cmd/server`), reload the
+connection so the client picks up the new code: run `/mcp` in Claude Code,
+select `consensus`, and reconnect — or restart Claude Code.
 
 Ingested datasets are written to `~/.consensus/store` by default; set
 `CONSENSUS_STORE_DIR` to put them elsewhere.
