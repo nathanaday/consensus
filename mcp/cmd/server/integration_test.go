@@ -83,3 +83,55 @@ func TestServerIngestsCSVOverStdio(t *testing.T) {
 		t.Fatalf("parquet not stored: %v", err)
 	}
 }
+
+func TestServerIntrospectionOverStdio(t *testing.T) {
+	ctx := context.Background()
+
+	storeDir := t.TempDir()
+	csvPath := filepath.Join(t.TempDir(), "readings.csv")
+	csv := "time,temp_c\n2026-01-01T00:00:00Z,12.4\n2026-01-01T00:05:00Z,12.6\n"
+	if err := os.WriteFile(csvPath, []byte(csv), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	cmd := exec.Command("go", "run", ".")
+	cmd.Env = append(os.Environ(), "CONSENSUS_STORE_DIR="+storeDir)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
+	if err != nil {
+		t.Fatalf("connect to server subprocess: %v", err)
+	}
+	defer session.Close()
+
+	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "ingest_csv",
+		Arguments: map[string]any{"path": csvPath},
+	}); err != nil {
+		t.Fatalf("ingest_csv: %v", err)
+	}
+
+	listRes, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_datasets"})
+	if err != nil {
+		t.Fatalf("list_datasets: %v", err)
+	}
+	if listRes.IsError {
+		t.Fatalf("list_datasets error result: %+v", listRes)
+	}
+	listData, _ := json.Marshal(listRes)
+	if !strings.Contains(string(listData), `"id":"readings"`) {
+		t.Fatalf("expected dataset readings, got %s", listData)
+	}
+
+	infoRes, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "server_info"})
+	if err != nil {
+		t.Fatalf("server_info: %v", err)
+	}
+	if infoRes.IsError {
+		t.Fatalf("server_info error result: %+v", infoRes)
+	}
+	infoData, _ := json.Marshal(infoRes)
+	if !strings.Contains(string(infoData), `"storage_format":"parquet"`) {
+		t.Fatalf("expected storage_format parquet, got %s", infoData)
+	}
+}
