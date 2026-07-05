@@ -27,6 +27,10 @@ func Register(server *mcp.Server) {
 		Description: "Create a new immutable copy of a dataset. The copy becomes a child of the source in the lineage graph (origin \"copy\"). Pass name to choose the new id; otherwise it is derived from the source id and disambiguated (e.g. readings -> readings-2). Returns the new dataset's description, including its parent edge.",
 	}, CopyDataset)
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "dataset_graph",
+		Description: "Render the lineage of all datasets. format \"mermaid\" (default) returns a Mermaid flowchart string (graph TD) with an edge per copy labeled by origin; format \"json\" returns a structured adjacency graph under \"graph\" with roots and a node map (parent_id, origin, children). Takes no other arguments; an empty store returns an empty graph.",
+	}, DatasetGraph)
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "server_info",
 		Description: "Report where and how the server stores data and what it can do: store_dir (the on-disk store location), files (the files currently in it), storage_format (the format datasets are written in), supported_ingest_formats (the source formats that can be ingested today), and capabilities (a short summary of current features). Takes no arguments.",
 	}, ServerInfo)
