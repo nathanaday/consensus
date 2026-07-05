@@ -19,6 +19,10 @@ func Register(server *mcp.Server) {
 		Description: "Describe one dataset by id: its kind, series (each with an optional unit), row_count, time_range, on-disk size_bytes, source_path, created_at, origin (how it was made), its parent (the dataset it was copied from, or null for a root loaded from a file), and its children (datasets copied from it). Returns no row data. Use this to answer what a dataset was copied from and what was derived from it.",
 	}, DescribeDataset)
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "preview_dataset",
+		Description: "Return a bounded sample of a dataset's rows (canonical long format: timestamp, series_id, value) so you can eyeball the data. limit defaults to 20 and is capped at 200 — this is a preview, not an export. Also reports returned (rows in this response) and row_count (total rows in the dataset).",
+	}, PreviewDataset)
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "server_info",
 		Description: "Report where and how the server stores data and what it can do: store_dir (the on-disk store location), files (the files currently in it), storage_format (the format datasets are written in), supported_ingest_formats (the source formats that can be ingested today), and capabilities (a short summary of current features). Takes no arguments.",
 	}, ServerInfo)
