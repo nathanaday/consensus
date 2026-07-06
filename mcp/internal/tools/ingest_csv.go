@@ -70,6 +70,7 @@ func IngestCSV(ctx context.Context, req *mcp.CallToolRequest, input IngestCSVInp
 		RowCount:        res.RowCount,
 		TimeRange:       res.TimeRange,
 		Rows:            res.Rows,
+		Origin:          "csv",
 	})
 	if err != nil {
 		return nil, IngestCSVOutput{}, err

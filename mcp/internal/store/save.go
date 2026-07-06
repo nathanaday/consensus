@@ -25,6 +25,8 @@ type SaveRequest struct {
 	RowCount        int
 	TimeRange       dataset.TimeRange
 	Rows            []dataset.Row
+	ParentID        string
+	Origin          string
 }
 
 // SaveDataset allocates an id, writes the Parquet file, and records the catalog
@@ -57,6 +59,8 @@ func SaveDataset(cfg Config, req SaveRequest) (dataset.Entry, error) {
 		Series:          req.Series,
 		RowCount:        req.RowCount,
 		TimeRange:       req.TimeRange,
+		ParentID:        req.ParentID,
+		Origin:          req.Origin,
 	}
 	if err := catalogPut(cat, entry); err != nil {
 		// The catalog entry is the commit point; without it the Parquet file is

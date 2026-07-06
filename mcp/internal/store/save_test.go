@@ -83,3 +83,32 @@ func TestSaveDatasetHonorsNameOverride(t *testing.T) {
 		t.Errorf("id = %q, want march", entry.ID)
 	}
 }
+
+func TestSaveDatasetRecordsLineage(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+
+	if _, err := SaveDataset(cfg, SaveRequest{NameOverride: "root", SourcePath: "/x/root.csv", Origin: "csv"}); err != nil {
+		t.Fatalf("save root: %v", err)
+	}
+	child, err := SaveDataset(cfg, SaveRequest{NameOverride: "child", ParentID: "root", Origin: "copy"})
+	if err != nil {
+		t.Fatalf("save child: %v", err)
+	}
+	if child.ParentID != "root" || child.Origin != "copy" {
+		t.Errorf("child lineage = {%q,%q}, want {root,copy}", child.ParentID, child.Origin)
+	}
+
+	cat, err := LoadCatalog(cfg.Dir)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	var got dataset.Entry
+	for _, e := range cat.Entries() {
+		if e.ID == "child" {
+			got = e
+		}
+	}
+	if got.ParentID != "root" || got.Origin != "copy" {
+		t.Errorf("persisted child lineage = {%q,%q}, want {root,copy}", got.ParentID, got.Origin)
+	}
+}
