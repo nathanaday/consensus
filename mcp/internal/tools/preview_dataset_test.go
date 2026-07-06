@@ -50,6 +50,15 @@ func TestPreviewDatasetRespectsLimit(t *testing.T) {
 	if !strings.Contains(s2, `"returned":1`) {
 		t.Errorf("expected returned 1 in %s", s2)
 	}
+	if !strings.Contains(s2, `"timestamp":1`) {
+		t.Errorf("expected first row (timestamp 1) in limit 1 result, got: %s", s2)
+	}
+	if strings.Contains(s2, `"timestamp":2`) {
+		t.Errorf("expected second row (timestamp 2) NOT in limit 1 result, got: %s", s2)
+	}
+	if strings.Contains(s2, `"timestamp":3`) {
+		t.Errorf("expected third row (timestamp 3) NOT in limit 1 result, got: %s", s2)
+	}
 }
 
 func mustJSON(v any) []byte {
