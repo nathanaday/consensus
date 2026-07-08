@@ -22,9 +22,11 @@ func WriteRows(path string, rows []dataset.Row) error {
 	}
 	if err := parquet.Write(f, rows); err != nil {
 		f.Close()
+		os.Remove(path)
 		return fmt.Errorf("write parquet: %w", err)
 	}
 	if err := f.Close(); err != nil {
+		os.Remove(path)
 		return fmt.Errorf("close %q: %w", path, err)
 	}
 	return nil
