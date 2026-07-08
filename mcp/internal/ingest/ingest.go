@@ -40,13 +40,51 @@ var timestampLayouts = []string{
 	"1/2/2006",
 }
 
+// Epoch windows: each unit owns a disjoint plausible-date span (~1971 to
+// ~2103), so magnitude alone determines the unit. Values in the gaps between
+// windows are not timestamps.
+const (
+	epochMinSeconds = 3.0e7
+	epochMaxSeconds = 4.2e9
+)
+
+// parseEpoch interprets v as a Unix epoch by magnitude: seconds,
+// milliseconds, microseconds, or nanoseconds. Fractions survive down to the
+// stored millisecond.
+func parseEpoch(v float64) (time.Time, bool) {
+	switch {
+	case v >= epochMinSeconds && v < epochMaxSeconds:
+		return time.UnixMilli(int64(v * 1e3)).UTC(), true
+	case v >= epochMinSeconds*1e3 && v < epochMaxSeconds*1e3:
+		return time.UnixMilli(int64(v)).UTC(), true
+	case v >= epochMinSeconds*1e6 && v < epochMaxSeconds*1e6:
+		return time.UnixMilli(int64(v / 1e3)).UTC(), true
+	case v >= epochMinSeconds*1e9 && v < epochMaxSeconds*1e9:
+		return time.UnixMilli(int64(v / 1e6)).UTC(), true
+	}
+	return time.Time{}, false
+}
+
 func parseTimestamp(s string) (time.Time, bool) {
 	for _, layout := range timestampLayouts {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t.UTC(), true
 		}
 	}
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		return parseEpoch(v)
+	}
 	return time.Time{}, false
+}
+
+// timestampError distinguishes a numeric value whose epoch unit cannot be
+// inferred from a string that matches no known layout. row is 1-based and
+// counts the header.
+func timestampError(val, col string, row int) error {
+	if _, err := strconv.ParseFloat(val, 64); err == nil {
+		return fmt.Errorf("cannot infer epoch unit for value %q in column %q (row %d): numeric timestamps must be Unix seconds, milliseconds, microseconds, or nanoseconds between ~1971 and ~2103", val, col, row)
+	}
+	return fmt.Errorf("unparseable timestamp %q in column %q (row %d); accepted formats: RFC3339 and common date layouts, or Unix epoch seconds/milliseconds/microseconds/nanoseconds", val, col, row)
 }
 
 func indexOf(header []string, name string) int {
@@ -82,13 +120,13 @@ func FromCSV(r io.Reader, opts Options) (Result, error) {
 
 	var out []dataset.Row
 	var minT, maxT time.Time
-	for _, rec := range rows {
+	for i, rec := range rows {
 		if tsIdx >= len(rec) {
 			continue
 		}
 		ts, ok := parseTimestamp(rec[tsIdx])
 		if !ok {
-			return Result{}, fmt.Errorf("unparseable timestamp %q in column %q", rec[tsIdx], tsName)
+			return Result{}, timestampError(rec[tsIdx], tsName, i+2)
 		}
 		if minT.IsZero() || ts.Before(minT) {
 			minT = ts
