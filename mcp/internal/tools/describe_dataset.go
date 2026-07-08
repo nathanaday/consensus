@@ -20,17 +20,18 @@ type DatasetRef struct {
 }
 
 type DescribeDatasetOutput struct {
-	ID         string            `json:"id"`
-	Kind       string            `json:"kind"`
-	Series     []dataset.Series  `json:"series"`
-	RowCount   int               `json:"row_count"`
-	TimeRange  dataset.TimeRange `json:"time_range"`
-	SizeBytes  int64             `json:"size_bytes"`
-	SourcePath string            `json:"source_path"`
-	CreatedAt  string            `json:"created_at"`
-	Origin     string            `json:"origin,omitempty"`
-	Parent     *DatasetRef       `json:"parent"`
-	Children   []DatasetRef      `json:"children"`
+	ID           string            `json:"id"`
+	Kind         string            `json:"kind"`
+	SourceColumn string            `json:"source_column"`
+	Unit         string            `json:"unit,omitempty"`
+	RowCount     int               `json:"row_count"`
+	TimeRange    dataset.TimeRange `json:"time_range"`
+	SizeBytes    int64             `json:"size_bytes"`
+	SourcePath   string            `json:"source_path"`
+	CreatedAt    string            `json:"created_at"`
+	Origin       string            `json:"origin,omitempty"`
+	Parent       *DatasetRef       `json:"parent"`
+	Children     []DatasetRef      `json:"children"`
 }
 
 // describeNode builds the describe view for a node. Shared with copy_dataset.
@@ -50,17 +51,18 @@ func describeNode(n *lineage.Node) DescribeDatasetOutput {
 	}
 
 	return DescribeDatasetOutput{
-		ID:         e.ID,
-		Kind:       e.Kind,
-		Series:     e.Series,
-		RowCount:   e.RowCount,
-		TimeRange:  e.TimeRange,
-		SizeBytes:  n.SizeBytes(),
-		SourcePath: e.SourcePath,
-		CreatedAt:  e.CreatedAt,
-		Origin:     e.Origin,
-		Parent:     parent,
-		Children:   children,
+		ID:           e.ID,
+		Kind:         e.Kind,
+		SourceColumn: e.SourceColumn,
+		Unit:         e.Unit,
+		RowCount:     e.RowCount,
+		TimeRange:    e.TimeRange,
+		SizeBytes:    n.SizeBytes(),
+		SourcePath:   e.SourcePath,
+		CreatedAt:    e.CreatedAt,
+		Origin:       e.Origin,
+		Parent:       parent,
+		Children:     children,
 	}
 }
 

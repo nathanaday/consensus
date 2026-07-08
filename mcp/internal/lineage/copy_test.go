@@ -17,12 +17,13 @@ func TestNodeCopyCreatesChildEdge(t *testing.T) {
 		NameOverride:    "readings",
 		Origin:          "csv",
 		TimestampColumn: "time",
-		Series:          []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
+		SourceColumn:    "temp_c",
+		Unit:            "celsius",
 		RowCount:        2,
 		TimeRange:       dataset.TimeRange{Start: "2026-01-01T00:00:00Z", End: "2026-01-01T00:05:00Z"},
 		Rows: []dataset.Row{
-			{Timestamp: 1, SeriesID: "temp_c", Value: 1.5},
-			{Timestamp: 2, SeriesID: "temp_c", Value: 2.5},
+			{Timestamp: 1, Value: 1.5},
+			{Timestamp: 2, Value: 2.5},
 		},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -50,8 +51,8 @@ func TestNodeCopyCreatesChildEdge(t *testing.T) {
 	if child.Info().Origin != "copy" {
 		t.Errorf("child origin = %q, want copy", child.Info().Origin)
 	}
-	if len(child.Info().Series) != 1 || child.Info().Series[0].Unit != "celsius" {
-		t.Errorf("child series not carried over: %+v", child.Info().Series)
+	if child.Info().SourceColumn != "temp_c" || child.Info().Unit != "celsius" {
+		t.Errorf("child channel not carried over: %+v", child.Info())
 	}
 
 	rows, err := child.LoadData()

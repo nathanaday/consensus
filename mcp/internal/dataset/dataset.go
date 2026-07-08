@@ -1,11 +1,10 @@
 // Package dataset holds the value types shared between ingestion and storage.
 package dataset
 
-// Row is one measurement in the canonical long layout. Timestamp is UTC epoch
+// Row is one measurement in a single-channel dataset. Timestamp is UTC epoch
 // milliseconds.
 type Row struct {
 	Timestamp int64   `parquet:"timestamp,timestamp(millisecond:utc)" json:"timestamp"`
-	SeriesID  string  `parquet:"series_id" json:"series_id"`
 	Value     float64 `parquet:"value" json:"value"`
 }
 
@@ -15,28 +14,24 @@ type TimeRange struct {
 	End   string `json:"end"`
 }
 
-// Series identifies one value stream in a dataset and its optional unit of
-// measurement. An empty Unit means the unit was not recorded at ingest.
-type Series struct {
-	ID   string `json:"id"`
-	Unit string `json:"unit,omitempty"`
-}
-
-// Entry is a catalog record describing one stored dataset. It records schema
-// and stats only, never data values.
+// Entry is a catalog record describing one stored dataset — a single channel
+// of measurements. It records schema and stats only, never data values.
 type Entry struct {
-	ID              string   `json:"id"`
-	Kind            string   `json:"kind"`
-	SourcePath      string   `json:"source_path"`
-	CreatedAt       string   `json:"created_at"`
-	TimestampColumn string   `json:"timestamp_column"`
-	Series          []Series `json:"series"`
-	// RowCount is the number of canonical long-format rows (one per series
-	// per timestamp), not the number of source CSV timestamps.
+	ID         string `json:"id"`
+	Kind       string `json:"kind"`
+	SourcePath string `json:"source_path"`
+	// SourceColumn is the source column this channel came from.
+	SourceColumn string `json:"source_column"`
+	// Unit is the channel's unit of measurement; empty when not recorded.
+	Unit            string `json:"unit,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	TimestampColumn string `json:"timestamp_column"`
+	// RowCount is the number of stored rows in this channel; blank source
+	// cells are skipped, so channels of one ingest can differ.
 	RowCount  int       `json:"row_count"`
 	TimeRange TimeRange `json:"time_range"`
 	// ParentID is the id of the dataset this one was copied/derived from;
-	// "" marks a root loaded directly from a source file.
+	// "" marks a root loaded from a source file.
 	ParentID string `json:"parent_id"`
 	// Origin describes how this dataset came to be: "csv" for a root ingest,
 	// "copy" for a plain copy, or a transform description for a derived dataset.

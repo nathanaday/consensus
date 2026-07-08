@@ -10,7 +10,7 @@ const wideCSV = `time,temp_c,humidity
 2026-01-01T00:05:00Z,12.6,5.0
 `
 
-func TestFromCSVMeltsWideToLong(t *testing.T) {
+func TestFromCSVSplitsColumnsIntoChannels(t *testing.T) {
 	res, err := FromCSV(strings.NewReader(wideCSV), Options{})
 	if err != nil {
 		t.Fatalf("FromCSV: %v", err)
@@ -18,30 +18,50 @@ func TestFromCSVMeltsWideToLong(t *testing.T) {
 	if res.TimestampColumn != "time" {
 		t.Errorf("timestamp column = %q, want time", res.TimestampColumn)
 	}
-	if got := len(res.Rows); got != 4 {
-		t.Fatalf("rows = %d, want 4 (2 timestamps x 2 series)", got)
+	if len(res.Channels) != 2 {
+		t.Fatalf("channels = %d, want 2", len(res.Channels))
 	}
-	if res.RowCount != 4 {
-		t.Errorf("RowCount = %d, want 4", res.RowCount)
+	byName := map[string]Channel{}
+	for _, ch := range res.Channels {
+		byName[ch.Column] = ch
 	}
-	want := map[string]bool{"temp_c": true, "humidity": true}
-	for _, s := range res.SeriesIDs {
-		if !want[s] {
-			t.Errorf("unexpected series %q", s)
-		}
+	temp, ok := byName["temp_c"]
+	if !ok {
+		t.Fatal("missing temp_c channel")
 	}
-	if len(res.SeriesIDs) != 2 {
-		t.Errorf("series count = %d, want 2", len(res.SeriesIDs))
+	if temp.RowCount != 2 || len(temp.Rows) != 2 {
+		t.Fatalf("temp_c rows = %d (count %d), want 2", len(temp.Rows), temp.RowCount)
 	}
-	// First row is the earliest timestamp for a series, normalized to UTC millis.
-	if res.Rows[0].Timestamp != 1767225600000 {
-		t.Errorf("first timestamp = %d, want 1767225600000", res.Rows[0].Timestamp)
+	if temp.Rows[0].Timestamp != 1767225600000 || temp.Rows[0].Value != 12.4 {
+		t.Errorf("temp_c first row = %+v, want {1767225600000 12.4}", temp.Rows[0])
 	}
-	if res.TimeRange.Start != "2026-01-01T00:00:00Z" {
-		t.Errorf("range start = %q", res.TimeRange.Start)
+	if temp.TimeRange.Start != "2026-01-01T00:00:00Z" || temp.TimeRange.End != "2026-01-01T00:05:00Z" {
+		t.Errorf("temp_c range = %+v", temp.TimeRange)
 	}
-	if res.TimeRange.End != "2026-01-01T00:05:00Z" {
-		t.Errorf("range end = %q", res.TimeRange.End)
+	if _, ok := byName["humidity"]; !ok {
+		t.Error("missing humidity channel")
+	}
+}
+
+func TestFromCSVPerChannelStatsSkipBlanks(t *testing.T) {
+	csv := "time,temp,hum\n2026-01-01T00:00:00Z,1.0,\n2026-01-01T00:05:00Z,2.0,5.0\n"
+	res, err := FromCSV(strings.NewReader(csv), Options{ValueCols: []string{"temp", "hum"}})
+	if err != nil {
+		t.Fatalf("FromCSV: %v", err)
+	}
+	byName := map[string]Channel{}
+	for _, ch := range res.Channels {
+		byName[ch.Column] = ch
+	}
+	if got := byName["temp"].RowCount; got != 2 {
+		t.Errorf("temp rows = %d, want 2", got)
+	}
+	hum := byName["hum"]
+	if hum.RowCount != 1 {
+		t.Errorf("hum rows = %d, want 1 (blank skipped)", hum.RowCount)
+	}
+	if hum.TimeRange.Start != "2026-01-01T00:05:00Z" || hum.TimeRange.End != "2026-01-01T00:05:00Z" {
+		t.Errorf("hum range = %+v, want the single non-blank timestamp", hum.TimeRange)
 	}
 }
 
@@ -56,8 +76,8 @@ a,2026-01-01T00:00:00Z,3.5
 	if res.TimestampColumn != "reading_at" {
 		t.Errorf("timestamp column = %q, want reading_at", res.TimestampColumn)
 	}
-	if len(res.Rows) != 1 || res.Rows[0].SeriesID != "val" {
-		t.Fatalf("rows = %+v", res.Rows)
+	if len(res.Channels) != 1 || res.Channels[0].Column != "val" || len(res.Channels[0].Rows) != 1 {
+		t.Fatalf("channels = %+v", res.Channels)
 	}
 }
 
@@ -116,11 +136,11 @@ func TestFromCSVParsesEpochSecondsCSV(t *testing.T) {
 	if res.TimestampColumn != "ts" {
 		t.Errorf("timestamp column = %q, want ts", res.TimestampColumn)
 	}
-	if len(res.Rows) != 2 {
-		t.Fatalf("rows = %d, want 2", len(res.Rows))
+	if len(res.Channels) != 1 || res.Channels[0].RowCount != 2 {
+		t.Fatalf("channels = %+v, want one humidity channel with 2 rows", res.Channels)
 	}
-	if res.Rows[0].Timestamp != 1594512094385 {
-		t.Errorf("first timestamp = %d, want 1594512094385", res.Rows[0].Timestamp)
+	if res.Channels[0].Rows[0].Timestamp != 1594512094385 {
+		t.Errorf("first timestamp = %d, want 1594512094385", res.Channels[0].Rows[0].Timestamp)
 	}
 }
 

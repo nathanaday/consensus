@@ -26,8 +26,8 @@ type PreviewDatasetOutput struct {
 	Rows      []dataset.Row `json:"rows"`
 }
 
-// PreviewDataset returns a bounded sample of a dataset's canonical long-format
-// rows so a caller can eyeball the data. It is a preview, never an export:
+// PreviewDataset returns a bounded sample of a dataset's rows so a caller
+// can eyeball the data. It is a preview, never an export:
 // the limit defaults to 20 and is capped at 200.
 func PreviewDataset(ctx context.Context, req *mcp.CallToolRequest, input PreviewDatasetInput) (*mcp.CallToolResult, PreviewDatasetOutput, error) {
 	g, err := lineage.Open()

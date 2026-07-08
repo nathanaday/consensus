@@ -19,9 +19,9 @@ func TestCopyDatasetCreatesChild(t *testing.T) {
 	t.Setenv("CONSENSUS_STORE_DIR", dir)
 	if _, err := store.SaveDataset(store.Config{Dir: dir}, store.SaveRequest{
 		NameOverride: "readings", Origin: "csv",
-		Series:   []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
+		SourceColumn: "temp_c", Unit: "celsius",
 		RowCount: 1,
-		Rows:     []dataset.Row{{Timestamp: 1, SeriesID: "temp_c", Value: 1.5}},
+		Rows:     []dataset.Row{{Timestamp: 1, Value: 1.5}},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}

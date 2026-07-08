@@ -16,8 +16,8 @@ import (
 func TestWriteReadRowsRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "ds.parquet")
 	rows := []dataset.Row{
-		{Timestamp: 1767225600000, SeriesID: "temp_c", Value: 12.4},
-		{Timestamp: 1767225600000, SeriesID: "humidity", Value: 5.1},
+		{Timestamp: 1767225600000, Value: 12.4},
+		{Timestamp: 1767225600000, Value: 5.1},
 	}
 	if err := WriteRows(path, rows); err != nil {
 		t.Fatalf("WriteRows: %v", err)
@@ -40,7 +40,7 @@ func TestWriteReadRowsRoundTrip(t *testing.T) {
 // than a bare int64.
 func TestWriteRowsStampsMillisecondTimestampLogicalType(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "ds.parquet")
-	if err := WriteRows(path, []dataset.Row{{Timestamp: 1767225600000, SeriesID: "temp_c", Value: 12.4}}); err != nil {
+	if err := WriteRows(path, []dataset.Row{{Timestamp: 1767225600000, Value: 12.4}}); err != nil {
 		t.Fatalf("WriteRows: %v", err)
 	}
 	b, err := os.ReadFile(path)
@@ -66,7 +66,7 @@ func TestWriteRowsStampsMillisecondTimestampLogicalType(t *testing.T) {
 func TestWriteRowsCreatesParentDirectories(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "iot", "temp.parquet")
-	rows := []dataset.Row{{Timestamp: 1, SeriesID: "temp", Value: 21.5}}
+	rows := []dataset.Row{{Timestamp: 1, Value: 21.5}}
 	if err := WriteRows(path, rows); err != nil {
 		t.Fatalf("WriteRows into missing subdir: %v", err)
 	}

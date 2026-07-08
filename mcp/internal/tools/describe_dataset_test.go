@@ -17,17 +17,17 @@ func seedLineage(t *testing.T, dir string) {
 	cfg := store.Config{Dir: dir}
 	if _, err := store.SaveDataset(cfg, store.SaveRequest{
 		NameOverride: "readings", Origin: "csv",
-		Series:   []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
+		SourceColumn: "temp_c", Unit: "celsius",
 		RowCount: 1,
-		Rows:     []dataset.Row{{Timestamp: 1, SeriesID: "temp_c", Value: 1.5}},
+		Rows:     []dataset.Row{{Timestamp: 1, Value: 1.5}},
 	}); err != nil {
 		t.Fatalf("seed root: %v", err)
 	}
 	if _, err := store.SaveDataset(cfg, store.SaveRequest{
 		NameOverride: "readings-2", ParentID: "readings", Origin: "copy",
-		Series:   []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
+		SourceColumn: "temp_c", Unit: "celsius",
 		RowCount: 1,
-		Rows:     []dataset.Row{{Timestamp: 1, SeriesID: "temp_c", Value: 1.5}},
+		Rows:     []dataset.Row{{Timestamp: 1, Value: 1.5}},
 	}); err != nil {
 		t.Fatalf("seed child: %v", err)
 	}
@@ -52,6 +52,9 @@ func TestDescribeDatasetShowsLineage(t *testing.T) {
 	}
 	if !strings.Contains(cs, `"parent":{"id":"readings","origin":"csv"}`) {
 		t.Errorf("child parent edge missing in %s", cs)
+	}
+	if !strings.Contains(cs, `"source_column":"temp_c"`) {
+		t.Errorf("child source_column missing in %s", cs)
 	}
 
 	rootRes, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "describe_dataset", Arguments: map[string]any{"id": "readings"}})

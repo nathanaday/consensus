@@ -76,10 +76,10 @@ func TestServerIngestsCSVOverStdio(t *testing.T) {
 	}
 
 	data, _ := json.Marshal(res)
-	if !strings.Contains(string(data), `"dataset_id":"readings"`) {
-		t.Fatalf("expected dataset_id readings, got %s", data)
+	if !strings.Contains(string(data), `"dataset_id":"readings/temp_c"`) {
+		t.Fatalf("expected dataset_id readings/temp_c, got %s", data)
 	}
-	if _, err := os.Stat(filepath.Join(storeDir, "readings.parquet")); err != nil {
+	if _, err := os.Stat(filepath.Join(storeDir, "readings", "temp_c.parquet")); err != nil {
 		t.Fatalf("parquet not stored: %v", err)
 	}
 }
@@ -119,8 +119,8 @@ func TestServerIntrospectionOverStdio(t *testing.T) {
 		t.Fatalf("list_datasets error result: %+v", listRes)
 	}
 	listData, _ := json.Marshal(listRes)
-	if !strings.Contains(string(listData), `"id":"readings"`) {
-		t.Fatalf("expected dataset readings, got %s", listData)
+	if !strings.Contains(string(listData), `"id":"readings/temp_c"`) {
+		t.Fatalf("expected dataset readings/temp_c, got %s", listData)
 	}
 
 	infoRes, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "server_info"})
@@ -165,7 +165,7 @@ func TestServerLineageOverStdio(t *testing.T) {
 
 	copyRes, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "copy_dataset",
-		Arguments: map[string]any{"id": "readings"},
+		Arguments: map[string]any{"id": "readings/temp_c"},
 	})
 	if err != nil {
 		t.Fatalf("copy_dataset: %v", err)
@@ -173,18 +173,18 @@ func TestServerLineageOverStdio(t *testing.T) {
 	if copyRes.IsError {
 		t.Fatalf("copy_dataset error result: %+v", copyRes)
 	}
-	if !strings.Contains(string(mustMarshal(copyRes)), `"id":"readings-2"`) {
-		t.Fatalf("expected copy id readings-2, got %s", mustMarshal(copyRes))
+	if !strings.Contains(string(mustMarshal(copyRes)), `"id":"readings/temp_c-2"`) {
+		t.Fatalf("expected copy id readings/temp_c-2, got %s", mustMarshal(copyRes))
 	}
 
 	descRes, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name:      "describe_dataset",
-		Arguments: map[string]any{"id": "readings-2"},
+		Arguments: map[string]any{"id": "readings/temp_c-2"},
 	})
 	if err != nil {
 		t.Fatalf("describe_dataset: %v", err)
 	}
-	if !strings.Contains(string(mustMarshal(descRes)), `"parent":{"id":"readings","origin":"csv"}`) {
+	if !strings.Contains(string(mustMarshal(descRes)), `"parent":{"id":"readings/temp_c","origin":"csv"}`) {
 		t.Fatalf("expected parent edge, got %s", mustMarshal(descRes))
 	}
 
@@ -198,7 +198,7 @@ func TestServerLineageOverStdio(t *testing.T) {
 	// Assert on the copy edge's label + target, which contain no JSON-escaped
 	// characters (the "-->" arrow's ">" is HTML-escaped on the wire, so match
 	// the unescaped part of the edge instead).
-	if !strings.Contains(string(mustMarshal(graphRes)), `|copy| readings_2`) {
+	if !strings.Contains(string(mustMarshal(graphRes)), `|copy| readings_temp_c_2`) {
 		t.Fatalf("expected copy edge in mermaid, got %s", mustMarshal(graphRes))
 	}
 }

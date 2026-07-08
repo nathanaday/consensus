@@ -7,17 +7,16 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/nathanaday/consensus/mcp/internal/dataset"
 	"github.com/nathanaday/consensus/mcp/internal/store"
 )
 
 func seedTwo(t *testing.T, dir string) {
 	t.Helper()
 	cfg := store.Config{Dir: dir}
-	if _, err := store.SaveDataset(cfg, store.SaveRequest{NameOverride: "readings", Origin: "csv", Series: []dataset.Series{{ID: "temp_c"}}}); err != nil {
+	if _, err := store.SaveDataset(cfg, store.SaveRequest{NameOverride: "readings", Origin: "csv", SourceColumn: "temp_c"}); err != nil {
 		t.Fatalf("seed root: %v", err)
 	}
-	if _, err := store.SaveDataset(cfg, store.SaveRequest{NameOverride: "readings-2", ParentID: "readings", Origin: "copy", Series: []dataset.Series{{ID: "temp_c"}}}); err != nil {
+	if _, err := store.SaveDataset(cfg, store.SaveRequest{NameOverride: "readings-2", ParentID: "readings", Origin: "copy", SourceColumn: "temp_c"}); err != nil {
 		t.Fatalf("seed child: %v", err)
 	}
 }

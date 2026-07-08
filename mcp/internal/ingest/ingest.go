@@ -1,4 +1,4 @@
-// Package ingest turns CSV bytes into canonical long-format rows. It has no
+// Package ingest turns CSV bytes into per-channel canonical rows. It has no
 // knowledge of how or where datasets are stored.
 package ingest
 
@@ -19,15 +19,20 @@ type Options struct {
 	ValueCols    []string
 }
 
-// Result is the canonical dataset plus the metadata needed for a catalog entry
-// and a schema summary.
+// Channel is one value column's rows and stats. Blank cells are skipped, so
+// row counts and time ranges are channel-specific.
+type Channel struct {
+	Column    string
+	Rows      []dataset.Row
+	RowCount  int
+	TimeRange dataset.TimeRange
+}
+
+// Result is the per-channel split of one CSV plus the detected timestamp
+// column.
 type Result struct {
-	Rows            []dataset.Row
 	TimestampColumn string
-	ValueColumns    []string
-	SeriesIDs       []string
-	RowCount        int
-	TimeRange       dataset.TimeRange
+	Channels        []Channel
 }
 
 var timestampLayouts = []string{
@@ -118,7 +123,7 @@ func isTimeLikeName(name string) bool {
 	return false
 }
 
-// FromCSV reads the CSV in r and normalizes it to long-format rows.
+// FromCSV reads the CSV in r and splits it into one channel per value column.
 func FromCSV(r io.Reader, opts Options) (Result, error) {
 	reader := csv.NewReader(r)
 	reader.FieldsPerRecord = -1
@@ -140,8 +145,12 @@ func FromCSV(r io.Reader, opts Options) (Result, error) {
 		return Result{}, err
 	}
 
-	var out []dataset.Row
-	var minT, maxT time.Time
+	channels := make([]Channel, len(valIdx))
+	for j, name := range valNames {
+		channels[j].Column = name
+	}
+	minT := make([]time.Time, len(valIdx))
+	maxT := make([]time.Time, len(valIdx))
 	for i, rec := range rows {
 		if tsIdx >= len(rec) {
 			continue
@@ -149,12 +158,6 @@ func FromCSV(r io.Reader, opts Options) (Result, error) {
 		ts, ok := parseTimestamp(rec[tsIdx])
 		if !ok {
 			return Result{}, timestampError(rec[tsIdx], tsName, i+2)
-		}
-		if minT.IsZero() || ts.Before(minT) {
-			minT = ts
-		}
-		if maxT.IsZero() || ts.After(maxT) {
-			maxT = ts
 		}
 		millis := ts.UnixMilli()
 		for j, idx := range valIdx {
@@ -165,21 +168,25 @@ func FromCSV(r io.Reader, opts Options) (Result, error) {
 			if err != nil {
 				return Result{}, fmt.Errorf("unparseable value %q in column %q", rec[idx], valNames[j])
 			}
-			out = append(out, dataset.Row{Timestamp: millis, SeriesID: valNames[j], Value: v})
+			channels[j].Rows = append(channels[j].Rows, dataset.Row{Timestamp: millis, Value: v})
+			if minT[j].IsZero() || ts.Before(minT[j]) {
+				minT[j] = ts
+			}
+			if maxT[j].IsZero() || ts.After(maxT[j]) {
+				maxT[j] = ts
+			}
 		}
 	}
-
-	return Result{
-		Rows:            out,
-		TimestampColumn: tsName,
-		ValueColumns:    valNames,
-		SeriesIDs:       valNames,
-		RowCount:        len(out),
-		TimeRange: dataset.TimeRange{
-			Start: minT.Format(time.RFC3339),
-			End:   maxT.Format(time.RFC3339),
-		},
-	}, nil
+	for j := range channels {
+		channels[j].RowCount = len(channels[j].Rows)
+		if !minT[j].IsZero() {
+			channels[j].TimeRange = dataset.TimeRange{
+				Start: minT[j].Format(time.RFC3339),
+				End:   maxT[j].Format(time.RFC3339),
+			}
+		}
+	}
+	return Result{TimestampColumn: tsName, Channels: channels}, nil
 }
 
 func resolveTimestamp(header, firstRow []string, override string) (int, string, error) {
