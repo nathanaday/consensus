@@ -62,3 +62,19 @@ func TestWriteRowsStampsMillisecondTimestampLogicalType(t *testing.T) {
 		t.Errorf("timestamp logical type = %q, want TIMESTAMP with unit=MILLIS and isAdjustedToUTC=true", lt)
 	}
 }
+
+func TestWriteRowsCreatesParentDirectories(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "iot", "temp.parquet")
+	rows := []dataset.Row{{Timestamp: 1, SeriesID: "temp", Value: 21.5}}
+	if err := WriteRows(path, rows); err != nil {
+		t.Fatalf("WriteRows into missing subdir: %v", err)
+	}
+	got, err := ReadRows(path)
+	if err != nil {
+		t.Fatalf("ReadRows: %v", err)
+	}
+	if len(got) != 1 || got[0].Value != 21.5 {
+		t.Errorf("round-trip = %+v, want the written row", got)
+	}
+}

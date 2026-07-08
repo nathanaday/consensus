@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
@@ -39,11 +40,10 @@ func SaveDataset(cfg Config, req SaveRequest) (dataset.Entry, error) {
 
 	base := req.NameOverride
 	if base == "" {
-		base = Slug(req.SourcePath)
-	} else {
-		base = Slug(base)
+		b := filepath.Base(req.SourcePath)
+		base = strings.TrimSuffix(b, filepath.Ext(b))
 	}
-	id := cat.AllocateID(base)
+	id := cat.AllocateID(Slug(base))
 
 	parquetPath := filepath.Join(cfg.Dir, id+".parquet")
 	if err := WriteRows(parquetPath, req.Rows); err != nil {

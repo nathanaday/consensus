@@ -1,7 +1,8 @@
 package store
 
 import (
-	"os"
+	"io/fs"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -24,24 +25,32 @@ func Capabilities() []string {
 	}
 }
 
-// ListStoreFiles returns the regular files in dir, sorted by name. In-flight
-// temp files (those a partial catalog write leaves behind, named with a
-// ".tmp-" segment) are excluded so a concurrent ingest never leaks a transient
-// name. The result is always non-nil.
+// ListStoreFiles returns the regular files under dir (subdirectories
+// included) as slash-separated paths relative to dir, sorted by name.
+// In-flight temp files (those a partial catalog write leaves behind, named
+// with a ".tmp-" segment) are excluded so a concurrent ingest never leaks a
+// transient name. The result is always non-nil.
 func ListStoreFiles(dir string) ([]string, error) {
-	ents, err := os.ReadDir(dir)
+	files := make([]string, 0)
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), catalogFile+".tmp-") {
+			return nil
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		files = append(files, filepath.ToSlash(rel))
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-	files := make([]string, 0, len(ents))
-	for _, e := range ents {
-		if !e.Type().IsRegular() {
-			continue
-		}
-		if strings.HasPrefix(e.Name(), catalogFile+".tmp-") {
-			continue
-		}
-		files = append(files, e.Name())
 	}
 	sort.Strings(files)
 	return files, nil
