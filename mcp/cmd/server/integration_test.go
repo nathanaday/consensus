@@ -203,6 +203,62 @@ func TestServerLineageOverStdio(t *testing.T) {
 	}
 }
 
+func TestServerIngestsEpochCSVPerChannelOverStdio(t *testing.T) {
+	ctx := context.Background()
+
+	fixture, err := filepath.Abs(filepath.Join("..", "..", "..", "data", "iot_telemetry_data-reduced.csv"))
+	if err != nil {
+		t.Fatalf("resolve fixture path: %v", err)
+	}
+	if _, err := os.Stat(fixture); err != nil {
+		t.Fatalf("fixture missing: %v", err)
+	}
+
+	storeDir := t.TempDir()
+	cmd := exec.Command("go", "run", ".")
+	cmd.Env = append(os.Environ(), "CONSENSUS_STORE_DIR="+storeDir)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
+	if err != nil {
+		t.Fatalf("connect to server subprocess: %v", err)
+	}
+	defer session.Close()
+
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "ingest_csv",
+		Arguments: map[string]any{"path": fixture, "name": "iot"},
+	})
+	if err != nil {
+		t.Fatalf("ingest_csv: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("ingest_csv error result: %s", mustMarshal(res))
+	}
+
+	s := string(mustMarshal(res))
+	for _, want := range []string{
+		`"group":"iot"`,
+		`"timestamp_column":"ts"`,
+		`"dataset_id":"iot/humidity"`,
+		`"dataset_id":"iot/smoke"`,
+		`"dataset_id":"iot/temp"`,
+		`"row_count":10000`,
+		`"start":"2020-07-12T00:01:34Z"`,
+		`"end":"2020-07-13T23:43:29Z"`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("expected %s in ingest result: %s", want, s)
+		}
+	}
+
+	for _, ch := range []string{"humidity", "smoke", "temp"} {
+		if _, err := os.Stat(filepath.Join(storeDir, "iot", ch+".parquet")); err != nil {
+			t.Errorf("channel parquet %s not stored: %v", ch, err)
+		}
+	}
+}
+
 func mustMarshal(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b
