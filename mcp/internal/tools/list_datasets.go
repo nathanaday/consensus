@@ -14,14 +14,15 @@ import (
 type ListDatasetsInput struct{}
 
 type DatasetSummary struct {
-	ID         string            `json:"id"`
-	Kind       string            `json:"kind"`
-	Series     []dataset.Series  `json:"series"`
-	RowCount   int               `json:"row_count"`
-	TimeRange  dataset.TimeRange `json:"time_range"`
-	SizeBytes  int64             `json:"size_bytes"`
-	SourcePath string            `json:"source_path"`
-	CreatedAt  string            `json:"created_at"`
+	ID           string            `json:"id"`
+	Kind         string            `json:"kind"`
+	SourceColumn string            `json:"source_column"`
+	Unit         string            `json:"unit,omitempty"`
+	RowCount     int               `json:"row_count"`
+	TimeRange    dataset.TimeRange `json:"time_range"`
+	SizeBytes    int64             `json:"size_bytes"`
+	SourcePath   string            `json:"source_path"`
+	CreatedAt    string            `json:"created_at"`
 }
 
 type ListDatasetsOutput struct {
@@ -48,14 +49,15 @@ func ListDatasets(ctx context.Context, req *mcp.CallToolRequest, input ListDatas
 			size = fi.Size()
 		}
 		summaries = append(summaries, DatasetSummary{
-			ID:         e.ID,
-			Kind:       e.Kind,
-			Series:     e.Series,
-			RowCount:   e.RowCount,
-			TimeRange:  e.TimeRange,
-			SizeBytes:  size,
-			SourcePath: e.SourcePath,
-			CreatedAt:  e.CreatedAt,
+			ID:           e.ID,
+			Kind:         e.Kind,
+			SourceColumn: e.SourceColumn,
+			Unit:         e.Unit,
+			RowCount:     e.RowCount,
+			TimeRange:    e.TimeRange,
+			SizeBytes:    size,
+			SourcePath:   e.SourcePath,
+			CreatedAt:    e.CreatedAt,
 		})
 	}
 

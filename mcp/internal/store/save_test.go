@@ -16,13 +16,13 @@ import (
 func TestSaveDatasetRemovesParquetWhenCatalogWriteFails(t *testing.T) {
 	cfg := Config{Dir: t.TempDir()}
 
-	orig := catalogPut
-	catalogPut = func(*Catalog, dataset.Entry) error { return errors.New("boom") }
-	defer func() { catalogPut = orig }()
+	orig := catalogPutAll
+	catalogPutAll = func(*Catalog, []dataset.Entry) error { return errors.New("boom") }
+	defer func() { catalogPutAll = orig }()
 
 	_, err := SaveDataset(cfg, SaveRequest{
 		SourcePath: "/abs/readings.csv",
-		Rows:       []dataset.Row{{Timestamp: 1, SeriesID: "s", Value: 1}},
+		Rows:       []dataset.Row{{Timestamp: 1, Value: 1}},
 	})
 	if err == nil {
 		t.Fatal("expected an error when the catalog write fails")
@@ -37,10 +37,11 @@ func TestSaveDatasetWritesParquetAndCatalog(t *testing.T) {
 	req := SaveRequest{
 		SourcePath:      "/abs/readings.csv",
 		TimestampColumn: "time",
-		Series:          []dataset.Series{{ID: "temp_c", Unit: "celsius"}},
+		SourceColumn:    "temp_c",
+		Unit:            "celsius",
 		RowCount:        1,
 		TimeRange:       dataset.TimeRange{Start: "2026-01-01T00:00:00Z", End: "2026-01-01T00:00:00Z"},
-		Rows:            []dataset.Row{{Timestamp: 1767225600000, SeriesID: "temp_c", Value: 12.4}},
+		Rows:            []dataset.Row{{Timestamp: 1767225600000, Value: 12.4}},
 	}
 
 	entry, err := SaveDataset(cfg, req)
@@ -53,8 +54,8 @@ func TestSaveDatasetWritesParquetAndCatalog(t *testing.T) {
 	if entry.Kind != "measurement" {
 		t.Errorf("kind = %q, want measurement", entry.Kind)
 	}
-	if len(entry.Series) != 1 || entry.Series[0].ID != "temp_c" || entry.Series[0].Unit != "celsius" {
-		t.Errorf("series = %+v, want [{temp_c celsius}]", entry.Series)
+	if entry.SourceColumn != "temp_c" || entry.Unit != "celsius" {
+		t.Errorf("channel = {%q %q}, want {temp_c celsius}", entry.SourceColumn, entry.Unit)
 	}
 	if _, err := time.Parse(time.RFC3339, entry.CreatedAt); err != nil {
 		t.Errorf("created_at not RFC3339: %q", entry.CreatedAt)
@@ -110,5 +111,113 @@ func TestSaveDatasetRecordsLineage(t *testing.T) {
 	}
 	if got.ParentID != "root" || got.Origin != "copy" {
 		t.Errorf("persisted child lineage = {%q,%q}, want {root,copy}", got.ParentID, got.Origin)
+	}
+}
+
+func groupReq() GroupRequest {
+	return GroupRequest{
+		SourcePath:      "/abs/readings.csv",
+		TimestampColumn: "time",
+		Origin:          "csv",
+		Channels: []ChannelData{
+			{
+				Column: "temp_c", Unit: "celsius", RowCount: 1,
+				TimeRange: dataset.TimeRange{Start: "2026-01-01T00:00:00Z", End: "2026-01-01T00:00:00Z"},
+				Rows:      []dataset.Row{{Timestamp: 1767225600000, Value: 12.4}},
+			},
+			{
+				Column: "humidity", RowCount: 1,
+				TimeRange: dataset.TimeRange{Start: "2026-01-01T00:00:00Z", End: "2026-01-01T00:00:00Z"},
+				Rows:      []dataset.Row{{Timestamp: 1767225600000, Value: 5.1}},
+			},
+		},
+	}
+}
+
+func TestSaveGroupCreatesOneDatasetPerChannel(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+
+	entries, err := SaveGroup(cfg, groupReq())
+	if err != nil {
+		t.Fatalf("SaveGroup: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d, want 2", len(entries))
+	}
+	if entries[0].ID != "readings/temp_c" || entries[1].ID != "readings/humidity" {
+		t.Errorf("ids = %q, %q; want readings/temp_c, readings/humidity", entries[0].ID, entries[1].ID)
+	}
+	if entries[0].SourceColumn != "temp_c" || entries[0].Unit != "celsius" {
+		t.Errorf("temp_c entry channel = {%q %q}", entries[0].SourceColumn, entries[0].Unit)
+	}
+	if entries[1].Unit != "" {
+		t.Errorf("humidity unit = %q, want empty (not recorded)", entries[1].Unit)
+	}
+	for _, id := range []string{"readings/temp_c", "readings/humidity"} {
+		if _, err := os.Stat(filepath.Join(cfg.Dir, filepath.FromSlash(id)+".parquet")); err != nil {
+			t.Errorf("parquet for %s not written: %v", id, err)
+		}
+	}
+
+	cat, err := LoadCatalog(cfg.Dir)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if !cat.Has("readings/temp_c") || !cat.Has("readings/humidity") {
+		t.Error("catalog missing group entries after reload")
+	}
+}
+
+func TestSaveGroupDisambiguatesTheGroup(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+	if _, err := SaveGroup(cfg, groupReq()); err != nil {
+		t.Fatalf("first SaveGroup: %v", err)
+	}
+	entries, err := SaveGroup(cfg, groupReq())
+	if err != nil {
+		t.Fatalf("second SaveGroup: %v", err)
+	}
+	if entries[0].ID != "readings-2/temp_c" || entries[1].ID != "readings-2/humidity" {
+		t.Errorf("re-ingest ids = %q, %q; want readings-2/temp_c, readings-2/humidity (group suffixed, channels together)", entries[0].ID, entries[1].ID)
+	}
+}
+
+func TestSaveGroupCleansUpWhenCatalogWriteFails(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+
+	orig := catalogPutAll
+	catalogPutAll = func(*Catalog, []dataset.Entry) error { return errors.New("boom") }
+	defer func() { catalogPutAll = orig }()
+
+	if _, err := SaveGroup(cfg, groupReq()); err == nil {
+		t.Fatal("expected an error when the catalog write fails")
+	}
+	for _, id := range []string{"readings/temp_c", "readings/humidity"} {
+		if _, statErr := os.Stat(filepath.Join(cfg.Dir, filepath.FromSlash(id)+".parquet")); !os.IsNotExist(statErr) {
+			t.Errorf("orphaned parquet %s left behind: stat err = %v", id, statErr)
+		}
+	}
+	cat, err := LoadCatalog(cfg.Dir)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if len(cat.Entries()) != 0 {
+		t.Errorf("catalog entries = %d, want 0", len(cat.Entries()))
+	}
+}
+
+func TestSaveGroupRejectsCollidingChannelIDs(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+	req := groupReq()
+	req.Channels[1].Column = "temp c" // slugs to temp_c, same as channel 0
+	if _, err := SaveGroup(cfg, req); err == nil {
+		t.Fatal("expected an error for colliding channel ids")
+	}
+}
+
+func TestSaveGroupRejectsEmptyChannels(t *testing.T) {
+	cfg := Config{Dir: t.TempDir()}
+	if _, err := SaveGroup(cfg, GroupRequest{SourcePath: "/x/y.csv"}); err == nil {
+		t.Fatal("expected an error for a group with no channels")
 	}
 }

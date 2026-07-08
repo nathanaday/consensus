@@ -45,7 +45,7 @@ func TestServerInfoReportsStoreAndFormats(t *testing.T) {
 		`"storage_format":"parquet"`,
 		`"supported_ingest_formats":["csv"]`,
 		`catalog.json`,
-		`readings.parquet`,
+		`readings/temp_c.parquet`,
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("expected %s in %s", want, s)

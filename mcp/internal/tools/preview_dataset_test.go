@@ -18,12 +18,12 @@ func TestPreviewDatasetRespectsLimit(t *testing.T) {
 	t.Setenv("CONSENSUS_STORE_DIR", dir)
 	if _, err := store.SaveDataset(store.Config{Dir: dir}, store.SaveRequest{
 		NameOverride: "readings", Origin: "csv",
-		Series:   []dataset.Series{{ID: "temp_c"}},
-		RowCount: 3,
+		SourceColumn: "temp_c",
+		RowCount:     3,
 		Rows: []dataset.Row{
-			{Timestamp: 1, SeriesID: "temp_c", Value: 1},
-			{Timestamp: 2, SeriesID: "temp_c", Value: 2},
-			{Timestamp: 3, SeriesID: "temp_c", Value: 3},
+			{Timestamp: 1, Value: 1},
+			{Timestamp: 2, Value: 2},
+			{Timestamp: 3, Value: 3},
 		},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)

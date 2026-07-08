@@ -57,3 +57,23 @@ func TestStoreFactConstants(t *testing.T) {
 		t.Error("Capabilities() is empty, want at least one entry")
 	}
 }
+
+func TestListStoreFilesWalksSubdirectories(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "iot"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	for _, p := range []string{"catalog.json", "iot/temp.parquet"} {
+		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(p)), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", p, err)
+		}
+	}
+	files, err := ListStoreFiles(dir)
+	if err != nil {
+		t.Fatalf("ListStoreFiles: %v", err)
+	}
+	want := []string{"catalog.json", "iot/temp.parquet"}
+	if len(files) != len(want) || files[0] != want[0] || files[1] != want[1] {
+		t.Errorf("files = %v, want %v", files, want)
+	}
+}

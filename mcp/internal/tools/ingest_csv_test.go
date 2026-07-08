@@ -50,24 +50,23 @@ func TestIngestCSVStoresDatasetAndSummarizes(t *testing.T) {
 
 	data, _ := json.Marshal(res)
 	s := string(data)
-	if !strings.Contains(s, `"dataset_id":"readings"`) {
-		t.Errorf("expected dataset_id readings in %s", s)
-	}
-	if !strings.Contains(s, `"row_count":4`) {
-		t.Errorf("expected row_count 4 in %s", s)
-	}
-	if !strings.Contains(s, `"id":"temp_c","unit":"celsius"`) {
-		t.Errorf("expected temp_c series carrying its unit in %s", s)
-	}
-	if !strings.Contains(s, `"id":"humidity"`) {
-		t.Errorf("expected humidity series in %s", s)
+	for _, want := range []string{
+		`"group":"readings"`,
+		`"dataset_id":"readings/temp_c"`,
+		`"dataset_id":"readings/humidity"`,
+		`"unit":"celsius"`,
+		`"row_count":2`,
+		`"timestamp_column":"time"`,
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("expected %s in %s", want, s)
+		}
 	}
 
-	if _, err := os.Stat(filepath.Join(storeDir, "readings.parquet")); err != nil {
-		t.Errorf("parquet not stored: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(storeDir, "catalog.json")); err != nil {
-		t.Errorf("catalog not written: %v", err)
+	for _, p := range []string{"readings/temp_c.parquet", "readings/humidity.parquet", "catalog.json"} {
+		if _, err := os.Stat(filepath.Join(storeDir, filepath.FromSlash(p))); err != nil {
+			t.Errorf("%s not stored: %v", p, err)
+		}
 	}
 }
 

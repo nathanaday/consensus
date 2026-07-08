@@ -8,7 +8,7 @@ import (
 	"github.com/nathanaday/consensus/mcp/internal/store"
 )
 
-// LoadData reads the dataset's canonical long-format rows from Parquet.
+// LoadData reads the dataset's rows from Parquet.
 func (n *Node) LoadData() ([]dataset.Row, error) {
 	return store.ReadRows(n.parquetPath())
 }

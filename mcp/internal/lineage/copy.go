@@ -32,8 +32,9 @@ func (n *Node) Copy(opts CopyOptions) (*Node, error) {
 	entry, err := store.SaveDataset(n.g.cfg, store.SaveRequest{
 		NameOverride:    name,
 		SourcePath:      src.SourcePath,
+		SourceColumn:    src.SourceColumn,
+		Unit:            src.Unit,
 		TimestampColumn: src.TimestampColumn,
-		Series:          src.Series,
 		RowCount:        src.RowCount,
 		TimeRange:       src.TimeRange,
 		Rows:            rows,

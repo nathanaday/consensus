@@ -8,19 +8,19 @@ func Register(server *mcp.Server) {
 	mcp.AddTool(server, &mcp.Tool{Name: "greet", Description: "say hi"}, SayHi)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "ingest_csv",
-		Description: "Ingest a local time-series CSV into the dataset store. Auto-detects the timestamp column and, from the first data row's numeric cells, the value columns (override with timestamp_col / value_cols; pass value_cols explicitly if a column's first value may be blank or non-numeric). Normalizes to a canonical long layout, stores it as Parquet, and returns a dataset_id plus a schema summary. row_count is the number of stored long-format rows (one per series per timestamp), not the number of source CSV timestamps. Reuse the dataset_id in later tools; it never returns row data. Pass units as a map of series id to unit of measurement to record them (e.g. {\"temp_c\":\"°C\"}); series without an entry are stored with no unit.",
+		Description: "Ingest a local time-series CSV into the dataset store, creating one dataset per numeric value column (dataset ids look like group/column, e.g. readings/temp_c). Auto-detects the timestamp column — string dates (RFC3339 and common layouts) or Unix epoch seconds/milliseconds/microseconds/nanoseconds, integer or float — preferring time-like column names; override with timestamp_col. Value columns are detected from the first data row's numeric cells (override with value_cols; pass it explicitly if a column's first value may be blank or non-numeric). Each channel is stored as Parquet with its own row_count and time_range (blank cells are skipped per channel). Returns the shared group id plus a summary per created dataset; it never returns row data. Pass units as a map of column name to unit of measurement (e.g. {\"temp_c\":\"°C\"}); columns without an entry are stored with no unit.",
 	}, IngestCSV)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_datasets",
-		Description: "List every dataset in the store with its metadata: id, kind, series (each with an optional unit of measurement), row_count (number of stored long-format rows), time_range, on-disk size_bytes, source_path, and created_at. Takes no arguments and returns no row data. An empty store returns an empty datasets list. A series with no recorded unit omits the unit field — report it as not recorded rather than inventing one.",
+		Description: "List every dataset in the store with its metadata: id, kind, source_column (the source column the channel came from), unit (optional unit of measurement), row_count, time_range, on-disk size_bytes, source_path, and created_at. Each dataset is a single channel; datasets ingested from the same file share an id prefix (group/column) and source_path. Takes no arguments and returns no row data. An empty store returns an empty datasets list. A dataset with no recorded unit omits the unit field — report it as not recorded rather than inventing one.",
 	}, ListDatasets)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "describe_dataset",
-		Description: "Describe one dataset by id: its kind, series (each with an optional unit), row_count, time_range, on-disk size_bytes, source_path, created_at, origin (how it was made), its parent (the dataset it was copied from, or null for a root loaded from a file), and its children (datasets copied from it). Returns no row data. Use this to answer what a dataset was copied from and what was derived from it.",
+		Description: "Describe one dataset by id: its kind, source_column, unit (omitted when not recorded), row_count, time_range, on-disk size_bytes, source_path, created_at, origin (how it was made), its parent (the dataset it was copied from, or null for a root loaded from a file), and its children (datasets copied from it). Returns no row data. Use this to answer what a dataset was copied from and what was derived from it.",
 	}, DescribeDataset)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "preview_dataset",
-		Description: "Return a bounded sample of a dataset's rows (canonical long format: timestamp, series_id, value) so you can eyeball the data. limit defaults to 20 and is capped at 200 — this is a preview, not an export. Also reports returned (rows in this response) and row_count (total rows in the dataset).",
+		Description: "Return a bounded sample of a dataset's rows (timestamp, value) so you can eyeball the data. limit defaults to 20 and is capped at 200 — this is a preview, not an export. Also reports returned (rows in this response) and row_count (total rows in the dataset).",
 	}, PreviewDataset)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "copy_dataset",

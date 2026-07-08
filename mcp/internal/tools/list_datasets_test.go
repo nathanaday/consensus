@@ -59,9 +59,11 @@ func TestListDatasetsReturnsCatalogMetadata(t *testing.T) {
 	data, _ := json.Marshal(res)
 	s := string(data)
 	for _, want := range []string{
-		`"id":"readings"`,
-		`"row_count":4`,
-		`"id":"temp_c","unit":"celsius"`,
+		`"id":"readings/temp_c"`,
+		`"id":"readings/humidity"`,
+		`"source_column":"temp_c"`,
+		`"unit":"celsius"`,
+		`"row_count":2`,
 		`"start":"2026-01-01T00:00:00Z"`,
 	} {
 		if !strings.Contains(s, want) {
