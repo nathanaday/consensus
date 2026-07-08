@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
@@ -96,6 +97,27 @@ func indexOf(header []string, name string) int {
 	return -1
 }
 
+var timeLikeNames = map[string]bool{
+	"ts": true, "time": true, "timestamp": true, "datetime": true,
+	"date": true, "epoch": true,
+}
+
+// isTimeLikeName reports whether a column name suggests a timestamp: the
+// whole name or any _-separated token matches a known time word,
+// case-insensitively.
+func isTimeLikeName(name string) bool {
+	l := strings.ToLower(name)
+	if timeLikeNames[l] {
+		return true
+	}
+	for _, tok := range strings.Split(l, "_") {
+		if timeLikeNames[tok] {
+			return true
+		}
+	}
+	return false
+}
+
 // FromCSV reads the CSV in r and normalizes it to long-format rows.
 func FromCSV(r io.Reader, opts Options) (Result, error) {
 	reader := csv.NewReader(r)
@@ -168,8 +190,11 @@ func resolveTimestamp(header, firstRow []string, override string) (int, string, 
 		}
 		return idx, override, nil
 	}
-	for i, name := range header {
-		if i < len(firstRow) {
+	for _, hinted := range []bool{true, false} {
+		for i, name := range header {
+			if isTimeLikeName(name) != hinted || i >= len(firstRow) {
+				continue
+			}
 			if _, ok := parseTimestamp(firstRow[i]); ok {
 				return i, name, nil
 			}

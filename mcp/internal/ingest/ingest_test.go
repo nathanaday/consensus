@@ -148,3 +148,29 @@ func TestFromCSVTimestampErrorNamesRowAndFormats(t *testing.T) {
 		}
 	}
 }
+
+func TestIsTimeLikeName(t *testing.T) {
+	cases := map[string]bool{
+		"ts": true, "Time": true, "TIMESTAMP": true, "datetime": true,
+		"date": true, "epoch": true, "event_time": true, "ts_utc": true,
+		"temperature": false, "timestamps": false, "latest": false, "": false,
+	}
+	for name, want := range cases {
+		if got := isTimeLikeName(name); got != want {
+			t.Errorf("isTimeLikeName(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+func TestFromCSVPrefersTimeLikeColumnNames(t *testing.T) {
+	// Both columns hold plausible epoch seconds; the name hint must make ts
+	// win even though reading comes first.
+	csv := "reading,ts\n1594512094,1594512095\n1594512096,1594512097\n"
+	res, err := FromCSV(strings.NewReader(csv), Options{})
+	if err != nil {
+		t.Fatalf("FromCSV: %v", err)
+	}
+	if res.TimestampColumn != "ts" {
+		t.Errorf("timestamp column = %q, want ts (name hint should win)", res.TimestampColumn)
+	}
+}
