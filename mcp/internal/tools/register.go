@@ -42,4 +42,8 @@ func Register(server *mcp.Server) {
 		Name:        "rate_of_change",
 		Description: "Compute rate-of-change statistics for one dataset from the pairwise derivative between consecutive points, in value units per second: max_rise and max_fall (each with the timestamp where the interval ends), mean_abs_rate, and median_sample_interval_seconds (use it to judge how evenly the data is sampled). Pairs sharing a timestamp are skipped. Pass optional start/end (RFC3339 UTC) to analyze only that inclusive time window. Needs at least 2 rows. Returns statistics only, never row data.",
 	}, RateOfChange)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "detect_outliers",
+		Description: "Find outliers in one dataset using the IQR method: a point outside [Q1 - k*IQR, Q3 + k*IQR] is an outlier (k = iqr_multiplier, default 1.5). Returns the quartiles and bounds used, total_outliers and percent of rows, plus the most extreme points (timestamp, value, deviation beyond the bound), capped at limit (default 20, max 100) — never bulk row data. Pass optional start/end (RFC3339 UTC) to analyze only that inclusive time window.",
+	}, DetectOutliers)
 }
