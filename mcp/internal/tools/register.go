@@ -34,4 +34,8 @@ func Register(server *mcp.Server) {
 		Name:        "server_info",
 		Description: "Report where and how the server stores data and what it can do: store_dir (the on-disk store location), files (the files currently in it), storage_format (the format datasets are written in), supported_ingest_formats (the source formats that can be ingested today), and capabilities (a short summary of current features). Takes no arguments.",
 	}, ServerInfo)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "summary_stats",
+		Description: "Compute descriptive statistics for one dataset: row_count, min and max (each with the timestamp it occurred at), mean, median, population stddev, the unit if recorded, and analyzed_range (the actual span examined). Pass optional start/end (RFC3339 UTC) to analyze only that inclusive time window. Returns statistics only, never row data.",
+	}, SummaryStats)
 }
