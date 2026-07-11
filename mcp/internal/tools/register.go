@@ -46,4 +46,8 @@ func Register(server *mcp.Server) {
 		Name:        "detect_outliers",
 		Description: "Find outliers in one dataset using the IQR method: a point outside [Q1 - k*IQR, Q3 + k*IQR] is an outlier (k = iqr_multiplier, default 1.5). Returns the quartiles and bounds used, total_outliers and percent of rows, plus the most extreme points (timestamp, value, deviation beyond the bound), capped at limit (default 20, max 100) — never bulk row data. Pass optional start/end (RFC3339 UTC) to analyze only that inclusive time window.",
 	}, DetectOutliers)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "remove_outliers",
+		Description: "Create a new dataset containing a source dataset's inliers: points outside the IQR fence [Q1 - k*IQR, Q3 + k*IQR] are dropped (k = iqr_multiplier, default 1.5). The new dataset is an immutable child of the source in the lineage graph (origin \"remove_outliers\"). Pass optional start/end (RFC3339 UTC) to first window the source, so this also works as a time-slice; bounds are computed over the window. Pass name to choose the new id, otherwise it is derived from the source id. Returns the new dataset's description plus rows_removed and the bounds applied — never row data. A run that removes nothing still creates the dataset.",
+	}, RemoveOutliers)
 }
