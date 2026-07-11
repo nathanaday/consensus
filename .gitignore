@@ -45,4 +45,6 @@ coverage.*
 # ==================
 /CLAUDE.md
 /docs/superpowers/
+.superpowers/
+.claude/
 
