@@ -259,6 +259,96 @@ func TestServerIngestsEpochCSVPerChannelOverStdio(t *testing.T) {
 	}
 }
 
+func TestServerAnalysisOverStdio(t *testing.T) {
+	ctx := context.Background()
+
+	storeDir := t.TempDir()
+	csvPath := filepath.Join(t.TempDir(), "readings.csv")
+	csv := "ts,temp\n" +
+		"2026-01-01T00:00:00Z,20.0\n" +
+		"2026-01-01T00:01:00Z,21.0\n" +
+		"2026-01-01T00:02:00Z,20.5\n" +
+		"2026-01-01T00:03:00Z,90.0\n" +
+		"2026-01-01T00:04:00Z,21.5\n"
+	if err := os.WriteFile(csvPath, []byte(csv), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	// values {20,20.5,21,21.5,90}: Q1=20.5, Q3=21.5, IQR=1 -> bounds [19, 23]
+
+	cmd := exec.Command("go", "run", ".")
+	cmd.Env = append(os.Environ(), "CONSENSUS_STORE_DIR="+storeDir)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
+	if err != nil {
+		t.Fatalf("connect to server subprocess: %v", err)
+	}
+	defer session.Close()
+
+	if _, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "ingest_csv",
+		Arguments: map[string]any{"path": csvPath},
+	}); err != nil {
+		t.Fatalf("ingest_csv: %v", err)
+	}
+
+	sumRes, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "summary_stats", Arguments: map[string]any{"id": "readings/temp"},
+	})
+	if err != nil {
+		t.Fatalf("summary_stats: %v", err)
+	}
+	if sumRes.IsError {
+		t.Fatalf("summary_stats error result: %+v", sumRes)
+	}
+	if s := string(mustMarshal(sumRes)); !strings.Contains(s, `"row_count":5`) || !strings.Contains(s, `"value":90`) {
+		t.Errorf("dirty summary missing expected stats: %s", s)
+	}
+
+	outRes, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "detect_outliers", Arguments: map[string]any{"id": "readings/temp"},
+	})
+	if err != nil {
+		t.Fatalf("detect_outliers: %v", err)
+	}
+	if outRes.IsError {
+		t.Fatalf("detect_outliers error result: %+v", outRes)
+	}
+	if s := string(mustMarshal(outRes)); !strings.Contains(s, `"total_outliers":1`) {
+		t.Errorf("expected exactly one outlier: %s", s)
+	}
+
+	rmRes, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "remove_outliers", Arguments: map[string]any{"id": "readings/temp"},
+	})
+	if err != nil {
+		t.Fatalf("remove_outliers: %v", err)
+	}
+	if rmRes.IsError {
+		t.Fatalf("remove_outliers error result: %+v", rmRes)
+	}
+	s := string(mustMarshal(rmRes))
+	if !strings.Contains(s, `"rows_removed":1`) {
+		t.Errorf("expected one row removed: %s", s)
+	}
+	if !strings.Contains(s, `"id":"readings/temp-2"`) {
+		t.Errorf("expected child id readings/temp-2: %s", s)
+	}
+
+	cleanRes, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "summary_stats", Arguments: map[string]any{"id": "readings/temp-2"},
+	})
+	if err != nil {
+		t.Fatalf("summary_stats on child: %v", err)
+	}
+	if cleanRes.IsError {
+		t.Fatalf("summary_stats on child error result: %+v", cleanRes)
+	}
+	if s := string(mustMarshal(cleanRes)); !strings.Contains(s, `"row_count":4`) || !strings.Contains(s, `"value":21.5`) {
+		t.Errorf("cleaned summary should have 4 rows and max 21.5: %s", s)
+	}
+}
+
 func mustMarshal(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b
