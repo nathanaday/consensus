@@ -54,4 +54,8 @@ func Register(server *mcp.Server) {
 		Name:        "profile",
 		Description: "Summarize the shape of one dataset over time as up to 48 time buckets, each with mean, min, max, and count. Pass bucket as a Go duration (e.g. 1h, 15m) or omit it to auto-pick a round width. Empty buckets appear with count 0 so gaps are visible. Pass optional start/end (RFC3339 UTC) to profile only that window. Returns bucketed statistics only, never row data.",
 	}, Profile)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "resample",
+		Description: "Create a new dataset by bucketing a source dataset into fixed-width intervals and aggregating each (agg: mean default, min, max, or median). bucket is a required Go duration (e.g. 1h) and must be at least the source's median sampling interval. The new dataset is an immutable child of the source in the lineage graph (origin \"resample\"); empty buckets are dropped. Pass optional start/end (RFC3339 UTC) to window the source first, and name to choose the new id. Use it to smooth noise or shrink a series before trend analysis. Returns the new dataset's description plus the bucket and agg used — never row data.",
+	}, Resample)
 }
