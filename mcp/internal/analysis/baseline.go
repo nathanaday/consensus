@@ -65,9 +65,9 @@ func baselineDist(sorted []dataset.Row, k float64) (BaselineDist, Bounds) {
 	sort.Float64s(values)
 	return BaselineDist{
 		Median: q.Q2, Q1: q.Q1, Q3: q.Q3,
-		P05:  quantile(values, 0.05),
-		P95:  quantile(values, 0.95),
-		Mean: mean,
+		P05:    quantile(values, 0.05),
+		P95:    quantile(values, 0.95),
+		Mean:   mean,
 		Stddev: math.Sqrt(sq / float64(len(values))),
 		Count:  len(sorted),
 	}, b
@@ -117,7 +117,6 @@ func Baseline(subject, baseline []dataset.Row, k float64) (BaselineReport, error
 	for _, r := range subj {
 		d := deviation(r.Value, bounds)
 		if d <= 0 {
-			cur = nil
 			continue
 		}
 		points++

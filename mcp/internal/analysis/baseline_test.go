@@ -80,3 +80,55 @@ func TestBaselineErrors(t *testing.T) {
 		t.Error("non-positive k should error")
 	}
 }
+
+func TestBaselineBridgesAcrossInBoundsRow(t *testing.T) {
+	base := baselineRows()
+	// anomaly, one in-bounds reading, anomaly. Subject median interval 60000ms,
+	// tol=180000ms; gap between the two anomalies (0 -> 120000) is under tol, so
+	// the brief in-bounds dip must NOT split the episode.
+	subj := []dataset.Row{
+		{Timestamp: 0, Value: 108},
+		{Timestamp: 60000, Value: 30},
+		{Timestamp: 120000, Value: 110},
+	}
+	rep, err := Baseline(subj, base, 1.5)
+	if err != nil {
+		t.Fatalf("Baseline: %v", err)
+	}
+	if rep.PointsOutside != 2 {
+		t.Fatalf("want 2 points outside, got %d", rep.PointsOutside)
+	}
+	if len(rep.Episodes) != 1 {
+		t.Fatalf("want 1 bridged episode, got %d: %+v", len(rep.Episodes), rep.Episodes)
+	}
+	if rep.Episodes[0].PeakValue != 110 {
+		t.Errorf("want peak 110, got %g", rep.Episodes[0].PeakValue)
+	}
+	if rep.Episodes[0].PointCount != 2 {
+		t.Errorf("want 2 points in bridged episode, got %d", rep.Episodes[0].PointCount)
+	}
+}
+
+func TestBaselineSplitsWhenGapExceedsTolerance(t *testing.T) {
+	base := baselineRows()
+	// two anomalies separated by a long in-bounds stretch: gap 0 -> 300000 exceeds
+	// tol 180000, so they must be two separate episodes.
+	subj := []dataset.Row{
+		{Timestamp: 0, Value: 108},
+		{Timestamp: 60000, Value: 30},
+		{Timestamp: 120000, Value: 30},
+		{Timestamp: 180000, Value: 30},
+		{Timestamp: 240000, Value: 30},
+		{Timestamp: 300000, Value: 110},
+	}
+	rep, err := Baseline(subj, base, 1.5)
+	if err != nil {
+		t.Fatalf("Baseline: %v", err)
+	}
+	if rep.PointsOutside != 2 {
+		t.Fatalf("want 2 points outside, got %d", rep.PointsOutside)
+	}
+	if len(rep.Episodes) != 2 {
+		t.Fatalf("want 2 episodes, got %d: %+v", len(rep.Episodes), rep.Episodes)
+	}
+}
