@@ -44,6 +44,8 @@ func Correlate(a, b []dataset.Row, originMS, widthMS int64) (CorrelationReport, 
 	if len(a) == 0 || len(b) == 0 {
 		return CorrelationReport{}, fmt.Errorf("correlation needs both series non-empty")
 	}
+	a = sortedByTime(a)
+	b = sortedByTime(b)
 	ma := bucketMeans(a, originMS, widthMS)
 	mb := bucketMeans(b, originMS, widthMS)
 
