@@ -50,4 +50,8 @@ func Register(server *mcp.Server) {
 		Name:        "remove_outliers",
 		Description: "Create a new dataset containing a source dataset's inliers: points outside the IQR fence [Q1 - k*IQR, Q3 + k*IQR] are dropped (k = iqr_multiplier, default 1.5). The new dataset is an immutable child of the source in the lineage graph (origin \"remove_outliers\"). Pass optional start/end (RFC3339 UTC) to first window the source, so this also works as a time-slice; bounds are computed over the window. Pass name to choose the new id, otherwise it is derived from the source id. Returns the new dataset's description plus rows_removed and the bounds applied — never row data. A run that removes nothing still creates the dataset.",
 	}, RemoveOutliers)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "profile",
+		Description: "Summarize the shape of one dataset over time as up to 48 time buckets, each with mean, min, max, and count. Pass bucket as a Go duration (e.g. 1h, 15m) or omit it to auto-pick a round width. Empty buckets appear with count 0 so gaps are visible. Pass optional start/end (RFC3339 UTC) to profile only that window. Returns bucketed statistics only, never row data.",
+	}, Profile)
 }
