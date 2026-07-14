@@ -61,3 +61,27 @@ func TestProfileTooManyBucketsErrors(t *testing.T) {
 		t.Error("explicit bucket over the cap should be a tool error")
 	}
 }
+
+func TestProfileEmptyBucketsHaveNoStats(t *testing.T) {
+	ctx := context.Background()
+	seedAnalysisDataset(t)
+	session := newConnectedSession(t)
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "profile", Arguments: map[string]any{"id": "readings", "bucket": "30s"},
+	})
+	if err != nil {
+		t.Fatalf("profile: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("profile returned error: %+v", res)
+	}
+	s := string(mustJSON(res))
+	// points at 0,60,120,180,240s -> 9 buckets, the odd-indexed ones empty.
+	if !strings.Contains(s, `"bucket_count":9`) {
+		t.Errorf("want bucket_count 9 in %s", s)
+	}
+	// an empty bucket serializes with count 0 and no stats (keys sorted: count then start).
+	if !strings.Contains(s, `{"count":0,"start":`) {
+		t.Errorf("expected an empty bucket with count 0 and no stats in %s", s)
+	}
+}
