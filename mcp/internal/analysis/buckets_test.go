@@ -55,9 +55,10 @@ func TestBucketsErrors(t *testing.T) {
 }
 
 func TestAutoWidthMS(t *testing.T) {
-	// 24h span, max 48 buckets -> need width >= 1800000ms (30m). Ladder rung 30m fits (48 buckets).
-	day := int64(24 * 60 * 60 * 1000)
-	rows := []dataset.Row{{Timestamp: 0, Value: 1}, {Timestamp: day, Value: 2}}
+	// 23h span, max 48 buckets. 15m -> 92+1 buckets (too many); 30m -> 46+1=47
+	// buckets (fits). Smallest rung that fits is 30m.
+	span := int64(23 * 60 * 60 * 1000)
+	rows := []dataset.Row{{Timestamp: 0, Value: 1}, {Timestamp: span, Value: 2}}
 	w, err := AutoWidthMS(rows, 48)
 	if err != nil {
 		t.Fatalf("AutoWidthMS: %v", err)

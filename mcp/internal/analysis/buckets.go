@@ -79,7 +79,7 @@ func AutoWidthMS(rows []dataset.Row, maxBuckets int) (int64, error) {
 	s := sortedByTime(rows)
 	span := s[len(s)-1].Timestamp - s[0].Timestamp
 	for _, w := range ladderMS {
-		if span/w <= int64(maxBuckets) {
+		if span/w+1 <= int64(maxBuckets) {
 			return w, nil
 		}
 	}
