@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -347,6 +349,85 @@ func TestServerAnalysisOverStdio(t *testing.T) {
 	if s := string(mustMarshal(cleanRes)); !strings.Contains(s, `"row_count":4`) || !strings.Contains(s, `"value":21.5`) {
 		t.Errorf("cleaned summary should have 4 rows and max 21.5: %s", s)
 	}
+}
+
+func TestServerPhase2StoryOverStdio(t *testing.T) {
+	ctx := context.Background()
+
+	// Build a two-channel CSV: gentle downward drift in temp with five spikes,
+	// pressure a strictly increasing linear function of temp.
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	var b strings.Builder
+	b.WriteString("ts,temp,pressure\n")
+	for i := 0; i < 120; i++ {
+		temp := 25.0 - 0.01*float64(i)
+		if i >= 60 && i <= 64 {
+			temp += 100
+		}
+		pressure := 50.0 + 2.0*temp
+		ts := base.Add(time.Duration(i) * time.Minute).Format(time.RFC3339)
+		b.WriteString(fmt.Sprintf("%s,%.4f,%.4f\n", ts, temp, pressure))
+	}
+	csvPath := filepath.Join(t.TempDir(), "story.csv")
+	if err := os.WriteFile(csvPath, []byte(b.String()), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	storeDir := t.TempDir()
+	cmd := exec.Command("go", "run", ".")
+	cmd.Env = append(os.Environ(), "CONSENSUS_STORE_DIR="+storeDir)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
+	if err != nil {
+		t.Fatalf("connect to server subprocess: %v", err)
+	}
+	defer session.Close()
+
+	call := func(name string, args map[string]any) string {
+		res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if res.IsError {
+			t.Fatalf("%s error result: %s", name, mustMarshal(res))
+		}
+		return string(mustMarshal(res))
+	}
+	want := func(name, s string, subs ...string) {
+		for _, sub := range subs {
+			if !strings.Contains(s, sub) {
+				t.Errorf("%s missing %s in %s", name, sub, s)
+			}
+		}
+	}
+
+	call("ingest_csv", map[string]any{"path": csvPath, "name": "story",
+		"units": map[string]any{"temp": "celsius", "pressure": "kpa"}})
+
+	want("data_quality", call("data_quality", map[string]any{"id": "story/temp"}),
+		`"median_interval_seconds":60`, `"total_gaps":0`)
+
+	want("compare_to_baseline", call("compare_to_baseline", map[string]any{
+		"id": "story/temp", "start": "2026-01-01T01:00:00Z", "end": "2026-01-01T01:04:00Z"}),
+		`"total_episodes":1`, `"direction":"above"`, `"points_outside":5`)
+
+	want("remove_outliers", call("remove_outliers", map[string]any{"id": "story/temp"}),
+		`"rows_removed":5`, `"id":"story/temp-2"`)
+
+	want("fit_trend", call("fit_trend", map[string]any{"id": "story/temp-2"}),
+		`"direction":"decreasing"`)
+
+	want("resample", call("resample", map[string]any{"id": "story/temp-2", "bucket": "10m", "agg": "mean"}),
+		`"origin":"resample"`)
+
+	// The resample child of story/temp-2 disambiguates under story/temp-2's own
+	// base, yielding story/temp-2-2 (not a sibling of story/temp-2 under story/temp).
+	want("fit_trend resampled", call("fit_trend", map[string]any{"id": "story/temp-2-2"}),
+		`"direction":"decreasing"`)
+
+	want("correlate", call("correlate", map[string]any{"id_a": "story/temp", "id_b": "story/pressure"}),
+		`"spearman":1`)
 }
 
 func mustMarshal(v any) []byte {

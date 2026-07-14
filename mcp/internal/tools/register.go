@@ -50,4 +50,32 @@ func Register(server *mcp.Server) {
 		Name:        "remove_outliers",
 		Description: "Create a new dataset containing a source dataset's inliers: points outside the IQR fence [Q1 - k*IQR, Q3 + k*IQR] are dropped (k = iqr_multiplier, default 1.5). The new dataset is an immutable child of the source in the lineage graph (origin \"remove_outliers\"). Pass optional start/end (RFC3339 UTC) to first window the source, so this also works as a time-slice; bounds are computed over the window. Pass name to choose the new id, otherwise it is derived from the source id. Returns the new dataset's description plus rows_removed and the bounds applied — never row data. A run that removes nothing still creates the dataset.",
 	}, RemoveOutliers)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "profile",
+		Description: "Summarize the shape of one dataset over time as up to 48 time buckets, each with mean, min, max, and count. Pass bucket as a Go duration (e.g. 1h, 15m) or omit it to auto-pick a round width. Empty buckets appear with count 0 so gaps are visible. Pass optional start/end (RFC3339 UTC) to profile only that window. Returns bucketed statistics only, never row data.",
+	}, Profile)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "resample",
+		Description: "Create a new dataset by bucketing a source dataset into fixed-width intervals and aggregating each (agg: mean default, min, max, or median). bucket is a required Go duration (e.g. 1h) and must be at least the source's median sampling interval. The new dataset is an immutable child of the source in the lineage graph (origin \"resample\"); empty buckets are dropped. Pass optional start/end (RFC3339 UTC) to window the source first, and name to choose the new id. Use it to smooth noise or shrink a series before trend analysis. Returns the new dataset's description plus the bucket and agg used — never row data.",
+	}, Resample)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fit_trend",
+		Description: "Fit a linear trend to one dataset over time by least squares. Returns direction (increasing, decreasing, or flat when the slope is not statistically distinguishable from zero), slope_per_hour and slope_per_day (in value units), r_squared (goodness of fit), window_duration_seconds, and caveats about short windows, few points, or weak fit. Pass optional start/end (RFC3339 UTC) to fit only that window. For noisy data, remove_outliers or resample first, then fit_trend on the result. Returns statistics only, never row data.",
+	}, FitTrend)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "compare_to_baseline",
+		Description: "Compare a subject window of one dataset against a baseline distribution and report anomalies. The baseline defaults to all history before the subject window (override with baseline_id, baseline_start, baseline_end). Points outside the baseline's IQR fence are grouped into episodes, each with its interval, direction, peak value and time, and deviation (top 10 by deviation; total_episodes is the full count). Also returns the baseline and subject summaries, points_outside, and pct_outside. An empty episode list means the subject is within the typical range. Pass start/end (RFC3339 UTC) for the subject window. Returns statistics only, never row data.",
+	}, CompareToBaseline)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "data_quality",
+		Description: "Report the health of one dataset's sampling: median/p95/min/max interval between points (seconds), gaps (intervals over 5x the median, top 10 by length with total_gaps), flatlines (runs of 10 or more identical consecutive values, top 10 by length with total_flatlines), and duplicate_timestamps. Use it to tell whether a sensor was offline, stuck, or irregularly sampled. Pass optional start/end (RFC3339 UTC) to check only that window. Returns statistics only, never row data.",
+	}, DataQuality)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "correlate",
+		Description: "Measure how two datasets move together. Both series are averaged onto a shared time grid over the overlapping window; only buckets where both have data count. Returns aligned_samples, pearson (linear) and spearman (rank/monotonic) correlation in [-1, 1], the bucket and analyzed_range used, and each unit. A coefficient is omitted with a caveat when a series is constant. Pass optional start/end (RFC3339 UTC) to narrow the window and bucket (Go duration) to set the grid. Errors if the datasets do not overlap in time. Returns statistics only, never row data.",
+	}, Correlate)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "compare_datasets",
+		Description: "Compare two dataset windows side by side. Each side reports row_count, analyzed_range, min and max (with timestamps), mean, median, stddev, and unit; the deltas are mean_difference, mean_pct_change, and stddev_ratio (side B relative to side A). Pass per-side windows (start_a/end_a, start_b/end_b, RFC3339 UTC) — use the same id for id_a and id_b with different windows to compare one channel across two periods. A caveat flags differing units. Returns statistics only, never row data.",
+	}, CompareDatasets)
 }
