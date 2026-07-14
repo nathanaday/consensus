@@ -430,6 +430,93 @@ func TestServerPhase2StoryOverStdio(t *testing.T) {
 		`"spearman":1`)
 }
 
+func TestServerPhase3StoryOverStdio(t *testing.T) {
+	ctx := context.Background()
+
+	// Build a two-channel CSV over three days of hourly samples: temp is a
+	// perfect daily sawtooth (value = hour of day) and power is temp delayed
+	// by exactly 2 hours.
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	var b strings.Builder
+	b.WriteString("ts,temp,power\n")
+	for i := 0; i < 72; i++ {
+		temp := i % 24
+		power := ((i - 2) + 24) % 24
+		ts := base.Add(time.Duration(i) * time.Hour).Format(time.RFC3339)
+		b.WriteString(fmt.Sprintf("%s,%d.0,%d.0\n", ts, temp, power))
+	}
+	csvPath := filepath.Join(t.TempDir(), "hvac.csv")
+	if err := os.WriteFile(csvPath, []byte(b.String()), 0o644); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+
+	storeDir := t.TempDir()
+	cmd := exec.Command("go", "run", ".")
+	cmd.Env = append(os.Environ(), "CONSENSUS_STORE_DIR="+storeDir)
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "test"}, nil)
+	session, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
+	if err != nil {
+		t.Fatalf("connect to server subprocess: %v", err)
+	}
+	defer session.Close()
+
+	call := func(name string, args map[string]any) string {
+		res, err := session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if res.IsError {
+			t.Fatalf("%s error result: %s", name, mustMarshal(res))
+		}
+		return string(mustMarshal(res))
+	}
+	want := func(name, s string, subs ...string) {
+		for _, sub := range subs {
+			if !strings.Contains(s, sub) {
+				t.Errorf("%s missing %s in %s", name, sub, s)
+			}
+		}
+	}
+
+	call("ingest_csv", map[string]any{"path": csvPath, "name": "hvac",
+		"units": map[string]any{"temp": "celsius", "power": "kW"}})
+
+	// The lay of the land across both channels in one call.
+	want("overview", call("overview", map[string]any{}),
+		`"dataset_count":2`, `"id":"hvac/temp"`, `"id":"hvac/power"`, `"last_value":23`)
+
+	// "When was the temperature above 20 and for how long?" Hours 21-23
+	// each day: three 2-hour events.
+	want("find_events", call("find_events", map[string]any{
+		"id": "hvac/temp", "condition": "above", "threshold": 20}),
+		`"total_events":3`, `"points_matching":9`, `"time_in_events_seconds":21600`)
+
+	// "Is there a daily pattern?" A perfect one.
+	want("seasonal_profile", call("seasonal_profile", map[string]any{
+		"id": "hvac/temp", "period": "hour_of_day"}),
+		`"cycle_strength":1`, `"span_periods":2.9`)
+
+	// "How are the values distributed?"
+	want("distribution", call("distribution", map[string]any{"id": "hvac/temp", "bins": 4}),
+		`"p50":11.5`, `"min":0`, `"max":23`)
+
+	// "How much energy did we use on day one?" A 0->23 ramp over 23 hours.
+	want("integrate", call("integrate", map[string]any{
+		"id": "hvac/power", "start": "2026-01-01T02:00:00Z", "end": "2026-01-02T01:00:00Z"}),
+		`"integral_value_hours":264.5`, `"time_weighted_mean":11.5`)
+
+	// "What was the temperature at half past midnight?"
+	want("value_at", call("value_at", map[string]any{
+		"id": "hvac/temp", "at": "2026-01-01T00:30:00Z"}),
+		`"interpolated":0.5`, `"offset_seconds":-1800`)
+
+	// "Does power follow temperature?" Yes, by exactly 2 hours.
+	want("find_lag", call("find_lag", map[string]any{
+		"id_a": "hvac/temp", "id_b": "hvac/power", "bucket": "1h", "max_lag": "3h"}),
+		`"best_lag_seconds":7200`, `"pearson_at_best_lag":1`)
+}
+
 func mustMarshal(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b

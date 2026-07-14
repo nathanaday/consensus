@@ -75,6 +75,34 @@ func Register(server *mcp.Server) {
 		Description: "Measure how two datasets move together. Both series are averaged onto a shared time grid over the overlapping window; only buckets where both have data count. Returns aligned_samples, pearson (linear) and spearman (rank/monotonic) correlation in [-1, 1], the bucket and analyzed_range used, and each unit. A coefficient is omitted with a caveat when a series is constant. Pass optional start/end (RFC3339 UTC) to narrow the window and bucket (Go duration) to set the grid. Errors if the datasets do not overlap in time. Returns statistics only, never row data.",
 	}, Correlate)
 	mcp.AddTool(server, &mcp.Tool{
+		Name:        "find_events",
+		Description: "Find when a dataset satisfied a value condition and for how long. condition is above or below (pass threshold) or between or outside (pass lower and upper). Consecutive matching points group into events, each with start, end, duration_seconds, point_count, direction, and the peak point; events are returned longest first, capped at limit (default 20, max 100) with total_events always the full count. Also reports points_matching, pct_points, time_in_events_seconds, and pct_time of the analyzed span. Use it for questions like when was the temperature above 80 and for how long. Pass optional start/end (RFC3339 UTC) to scan only that window. Returns statistics only, never row data.",
+	}, FindEvents)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "distribution",
+		Description: "Report how one dataset's values are distributed: min, max, mean, stddev, percentiles (p05 through p99), and an equal-width histogram (each bin's lower, upper, count, and pct). Pass bins to set the bin count (max 40); omitted picks one from the sample size. Use it for questions like what is the p95, how spread out are the values, or is the distribution skewed or bimodal. Pass optional start/end (RFC3339 UTC) to analyze only that window. Returns statistics only, never row data.",
+	}, Distribution)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "seasonal_profile",
+		Description: "Report how a dataset's values vary across a repeating cycle: period hour_of_day gives 24 positions, day_of_week gives 7, each with mean, min, max, and count. cycle_strength (0 to 1) is the share of total variance the cycle position explains — near 1 means a strong repeating pattern, near 0 means none. Positions use UTC. Use it for questions like is there a daily pattern or what does a typical day look like; span at least 2 full cycles for a meaningful profile. Pass optional start/end (RFC3339 UTC) to profile only that window. Returns statistics only, never row data.",
+	}, SeasonalProfile)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "find_lag",
+		Description: "Find the time offset at which two datasets correlate most strongly, answering does channel B follow channel A and by how much. Both series are averaged onto a shared bucket grid over their overlapping window (bucket auto-picked or passed as a Go duration; the lag estimate resolves to whole buckets); the scan covers offsets up to max_lag (Go duration) in each direction, defaulting to a quarter of the window. A positive best_lag_seconds means id_b follows id_a by that long; also reports pearson_at_best_lag and pearson_at_zero_lag for comparison. Errors if the datasets do not overlap in time. Returns statistics only, never row data.",
+	}, FindLag)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "integrate",
+		Description: "Compute the area under one dataset's curve by the trapezoidal rule: integral_value_seconds and integral_value_hours (value times time — e.g. a power channel in kW integrates to kWh via integral_value_hours), plus time_weighted_mean (the average weighting each reading by how long it held, robust to uneven sampling) and duration_seconds. Sampling gaps are integrated as straight lines and flagged in caveats. Pass optional start/end (RFC3339 UTC) to integrate only that window. Needs at least 2 rows. Returns statistics only, never row data.",
+	}, Integrate)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "value_at",
+		Description: "Report a dataset's value at one instant (at, RFC3339 UTC): the nearest sample (timestamp and value), offset_seconds from the requested instant (negative when the sample is earlier), and interpolated — the linear estimate between the bracketing samples, omitted when the instant is outside the dataset's span. Pass max_distance (Go duration) to error instead when no sample is close enough. Use it for questions like what was the temperature at 3pm. Returns a single point, never bulk row data.",
+	}, ValueAt)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "overview",
+		Description: "Report a compact statistical snapshot of every dataset in one call: per channel its id, unit, origin, row_count, time_range, last reading (value and timestamp), mean, min, max, and stddev. Pass prefix to cover only ids starting with it (e.g. one ingest group). Use it to get the lay of the land across many channels — which sensors exist, their latest values, and their typical levels — before drilling into one with the single-dataset tools. Returns statistics only, never row data.",
+	}, Overview)
+	mcp.AddTool(server, &mcp.Tool{
 		Name:        "compare_datasets",
 		Description: "Compare two dataset windows side by side. Each side reports row_count, analyzed_range, min and max (with timestamps), mean, median, stddev, and unit; the deltas are mean_difference, mean_pct_change, and stddev_ratio (side B relative to side A). Pass per-side windows (start_a/end_a, start_b/end_b, RFC3339 UTC) — use the same id for id_a and id_b with different windows to compare one channel across two periods. A caveat flags differing units. Returns statistics only, never row data.",
 	}, CompareDatasets)

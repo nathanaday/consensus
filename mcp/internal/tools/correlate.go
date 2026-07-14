@@ -10,7 +10,6 @@ import (
 
 	"github.com/nathanaday/consensus/mcp/internal/analysis"
 	"github.com/nathanaday/consensus/mcp/internal/dataset"
-	"github.com/nathanaday/consensus/mcp/internal/lineage"
 )
 
 const correlateTargetBuckets = 100
@@ -64,56 +63,9 @@ func windowMS(rows []dataset.Row, loMS, hiMS int64) []dataset.Row {
 // Correlate reports how two datasets move together over an aligned time grid.
 // It returns statistics only, never row data.
 func Correlate(ctx context.Context, req *mcp.CallToolRequest, input CorrelateInput) (*mcp.CallToolResult, CorrelateOutput, error) {
-	g, err := lineage.Open()
+	wa, wb, loMS, hiMS, na, nb, err := overlappingRows(input.IDA, input.IDB, input.Start, input.End)
 	if err != nil {
 		return nil, CorrelateOutput{}, err
-	}
-	na, err := g.Node(input.IDA)
-	if err != nil {
-		return nil, CorrelateOutput{}, err
-	}
-	nb, err := g.Node(input.IDB)
-	if err != nil {
-		return nil, CorrelateOutput{}, err
-	}
-	rowsA, err := na.LoadData()
-	if err != nil {
-		return nil, CorrelateOutput{}, err
-	}
-	rowsB, err := nb.LoadData()
-	if err != nil {
-		return nil, CorrelateOutput{}, err
-	}
-	if len(rowsA) == 0 || len(rowsB) == 0 {
-		return nil, CorrelateOutput{}, fmt.Errorf("both datasets must have rows; %q has %d, %q has %d", input.IDA, len(rowsA), input.IDB, len(rowsB))
-	}
-
-	firstA, lastA := firstLastMS(rowsA)
-	firstB, lastB := firstLastMS(rowsB)
-
-	loMS, hiMS := max64(firstA, firstB), min64(lastA, lastB)
-	if input.Start != "" {
-		t, perr := time.Parse(time.RFC3339, input.Start)
-		if perr != nil {
-			return nil, CorrelateOutput{}, fmt.Errorf("invalid start %q; expected an RFC3339 UTC timestamp", input.Start)
-		}
-		loMS = t.UnixMilli()
-	}
-	if input.End != "" {
-		t, perr := time.Parse(time.RFC3339, input.End)
-		if perr != nil {
-			return nil, CorrelateOutput{}, fmt.Errorf("invalid end %q; expected an RFC3339 UTC timestamp", input.End)
-		}
-		hiMS = t.UnixMilli()
-	}
-	if loMS > hiMS {
-		return nil, CorrelateOutput{}, fmt.Errorf("datasets do not overlap in time: %q spans %s..%s, %q spans %s..%s", input.IDA, renderMS(firstA), renderMS(lastA), input.IDB, renderMS(firstB), renderMS(lastB))
-	}
-
-	wa := windowMS(rowsA, loMS, hiMS)
-	wb := windowMS(rowsB, loMS, hiMS)
-	if len(wa) == 0 || len(wb) == 0 {
-		return nil, CorrelateOutput{}, fmt.Errorf("no overlapping rows in the analyzed window for %q and %q", input.IDA, input.IDB)
 	}
 
 	var widthMS int64

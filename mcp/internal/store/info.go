@@ -22,6 +22,9 @@ func Capabilities() []string {
 	return []string{
 		"CSV ingest into a Parquet store",
 		"Dataset catalog with schema, units, and time-range metadata",
+		"Dataset lineage with immutable derived datasets (copy, remove_outliers, resample)",
+		"Single-series analysis: summaries, distributions, profiles, trends, rates, outliers, threshold events, baseline comparison, seasonal cycles, integration, point lookup, and data quality",
+		"Cross-channel analysis: correlation, lag detection, side-by-side comparison, and a store-wide overview",
 	}
 }
 
