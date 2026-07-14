@@ -62,4 +62,8 @@ func Register(server *mcp.Server) {
 		Name:        "fit_trend",
 		Description: "Fit a linear trend to one dataset over time by least squares. Returns direction (increasing, decreasing, or flat when the slope is not statistically distinguishable from zero), slope_per_hour and slope_per_day (in value units), r_squared (goodness of fit), window_duration_seconds, and caveats about short windows, few points, or weak fit. Pass optional start/end (RFC3339 UTC) to fit only that window. For noisy data, remove_outliers or resample first, then fit_trend on the result. Returns statistics only, never row data.",
 	}, FitTrend)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "compare_to_baseline",
+		Description: "Compare a subject window of one dataset against a baseline distribution and report anomalies. The baseline defaults to all history before the subject window (override with baseline_id, baseline_start, baseline_end). Points outside the baseline's IQR fence are grouped into episodes, each with its interval, direction, peak value and time, and deviation (top 10 by deviation; total_episodes is the full count). Also returns the baseline and subject summaries, points_outside, and pct_outside. An empty episode list means the subject is within the typical range. Pass start/end (RFC3339 UTC) for the subject window. Returns statistics only, never row data.",
+	}, CompareToBaseline)
 }
