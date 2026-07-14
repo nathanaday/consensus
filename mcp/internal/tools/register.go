@@ -70,4 +70,8 @@ func Register(server *mcp.Server) {
 		Name:        "data_quality",
 		Description: "Report the health of one dataset's sampling: median/p95/min/max interval between points (seconds), gaps (intervals over 5x the median, top 10 by length with total_gaps), flatlines (runs of 10 or more identical consecutive values, top 10 by length with total_flatlines), and duplicate_timestamps. Use it to tell whether a sensor was offline, stuck, or irregularly sampled. Pass optional start/end (RFC3339 UTC) to check only that window. Returns statistics only, never row data.",
 	}, DataQuality)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "correlate",
+		Description: "Measure how two datasets move together. Both series are averaged onto a shared time grid over the overlapping window; only buckets where both have data count. Returns aligned_samples, pearson (linear) and spearman (rank/monotonic) correlation in [-1, 1], the bucket and analyzed_range used, and each unit. A coefficient is omitted with a caveat when a series is constant. Pass optional start/end (RFC3339 UTC) to narrow the window and bucket (Go duration) to set the grid. Errors if the datasets do not overlap in time. Returns statistics only, never row data.",
+	}, Correlate)
 }
