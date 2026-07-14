@@ -74,4 +74,8 @@ func Register(server *mcp.Server) {
 		Name:        "correlate",
 		Description: "Measure how two datasets move together. Both series are averaged onto a shared time grid over the overlapping window; only buckets where both have data count. Returns aligned_samples, pearson (linear) and spearman (rank/monotonic) correlation in [-1, 1], the bucket and analyzed_range used, and each unit. A coefficient is omitted with a caveat when a series is constant. Pass optional start/end (RFC3339 UTC) to narrow the window and bucket (Go duration) to set the grid. Errors if the datasets do not overlap in time. Returns statistics only, never row data.",
 	}, Correlate)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "compare_datasets",
+		Description: "Compare two dataset windows side by side. Each side reports row_count, analyzed_range, min and max (with timestamps), mean, median, stddev, and unit; the deltas are mean_difference, mean_pct_change, and stddev_ratio (side B relative to side A). Pass per-side windows (start_a/end_a, start_b/end_b, RFC3339 UTC) — use the same id for id_a and id_b with different windows to compare one channel across two periods. A caveat flags differing units. Returns statistics only, never row data.",
+	}, CompareDatasets)
 }
