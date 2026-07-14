@@ -43,3 +43,28 @@ func TestDataQualityReportsGap(t *testing.T) {
 		}
 	}
 }
+
+func TestDataQualityFewPointsCaveat(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("CONSENSUS_STORE_DIR", dir)
+	rows := []dataset.Row{{Timestamp: 0, Value: 1}, {Timestamp: 60000, Value: 2}}
+	if _, err := store.SaveDataset(store.Config{Dir: dir}, store.SaveRequest{
+		NameOverride: "readings", Origin: "csv", RowCount: len(rows), Rows: rows,
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	session := newConnectedSession(t)
+	res, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "data_quality", Arguments: map[string]any{"id": "readings"},
+	})
+	if err != nil {
+		t.Fatalf("data_quality: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("returned error: %+v", res)
+	}
+	s := string(mustJSON(res))
+	if !strings.Contains(s, "fewer than 3 points") {
+		t.Errorf("expected few-points caveat in %s", s)
+	}
+}

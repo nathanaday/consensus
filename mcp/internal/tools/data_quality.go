@@ -19,9 +19,9 @@ type DataQualityInput struct {
 }
 
 type GapOut struct {
-	Start           string `json:"start"`
-	End             string `json:"end"`
-	DurationSeconds int64  `json:"duration_seconds"`
+	Start           string  `json:"start"`
+	End             string  `json:"end"`
+	DurationSeconds float64 `json:"duration_seconds"`
 }
 
 type FlatlineOut struct {
@@ -69,7 +69,7 @@ func DataQuality(ctx context.Context, req *mcp.CallToolRequest, input DataQualit
 	}
 	gapsOut := make([]GapOut, len(gaps))
 	for i, g := range gaps {
-		gapsOut[i] = GapOut{Start: renderMS(g.StartMS), End: renderMS(g.EndMS), DurationSeconds: g.DurationMS / 1000}
+		gapsOut[i] = GapOut{Start: renderMS(g.StartMS), End: renderMS(g.EndMS), DurationSeconds: float64(g.DurationMS) / 1000}
 	}
 
 	flat := rep.Flatlines

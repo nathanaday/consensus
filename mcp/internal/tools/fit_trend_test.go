@@ -32,3 +32,22 @@ func TestFitTrendReportsDirection(t *testing.T) {
 		t.Errorf("expected small-sample caveat in %s", s)
 	}
 }
+
+func TestFitTrendShortWindowCaveat(t *testing.T) {
+	ctx := context.Background()
+	seedAnalysisDataset(t) // 5 points over 4 minutes -> short window
+	session := newConnectedSession(t)
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "fit_trend", Arguments: map[string]any{"id": "readings"},
+	})
+	if err != nil {
+		t.Fatalf("fit_trend: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("returned error: %+v", res)
+	}
+	s := string(mustJSON(res))
+	if !strings.Contains(s, "less than 48 hours") {
+		t.Errorf("expected short-window caveat in %s", s)
+	}
+}

@@ -54,3 +54,22 @@ func TestCompareDatasetsPeriods(t *testing.T) {
 		}
 	}
 }
+
+func TestCompareDatasetsUnitMismatchCaveat(t *testing.T) {
+	ctx := context.Background()
+	seedTwoChannels(t) // temp (celsius) and pressure (kpa)
+	session := newConnectedSession(t)
+	res, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "compare_datasets", Arguments: map[string]any{"id_a": "temp", "id_b": "pressure"},
+	})
+	if err != nil {
+		t.Fatalf("compare_datasets: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("returned error: %+v", res)
+	}
+	s := string(mustJSON(res))
+	if !strings.Contains(s, "units differ") {
+		t.Errorf("expected unit-mismatch caveat in %s", s)
+	}
+}

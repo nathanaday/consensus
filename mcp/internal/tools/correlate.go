@@ -139,7 +139,7 @@ func Correlate(ctx context.Context, req *mcp.CallToolRequest, input CorrelateInp
 	if rep.AlignedSamples < 10 {
 		caveats = append(caveats, fmt.Sprintf("only %d aligned samples; correlation may be unreliable", rep.AlignedSamples))
 	}
-	if !rep.PearsonOK || !rep.SpearmanOK {
+	if rep.AlignedSamples >= 2 && (!rep.PearsonOK || !rep.SpearmanOK) {
 		caveats = append(caveats, "correlation is undefined for a constant series; a coefficient is omitted")
 	}
 
