@@ -58,4 +58,8 @@ func Register(server *mcp.Server) {
 		Name:        "resample",
 		Description: "Create a new dataset by bucketing a source dataset into fixed-width intervals and aggregating each (agg: mean default, min, max, or median). bucket is a required Go duration (e.g. 1h) and must be at least the source's median sampling interval. The new dataset is an immutable child of the source in the lineage graph (origin \"resample\"); empty buckets are dropped. Pass optional start/end (RFC3339 UTC) to window the source first, and name to choose the new id. Use it to smooth noise or shrink a series before trend analysis. Returns the new dataset's description plus the bucket and agg used — never row data.",
 	}, Resample)
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "fit_trend",
+		Description: "Fit a linear trend to one dataset over time by least squares. Returns direction (increasing, decreasing, or flat when the slope is not statistically distinguishable from zero), slope_per_hour and slope_per_day (in value units), r_squared (goodness of fit), window_duration_seconds, and caveats about short windows, few points, or weak fit. Pass optional start/end (RFC3339 UTC) to fit only that window. For noisy data, remove_outliers or resample first, then fit_trend on the result. Returns statistics only, never row data.",
+	}, FitTrend)
 }
