@@ -35,21 +35,21 @@ type EpisodeOut struct {
 }
 
 type CompareToBaselineOutput struct {
-	ID              string                  `json:"id"`
-	RowCount        int                     `json:"row_count"`
-	AnalyzedRange   dataset.TimeRange       `json:"analyzed_range"`
-	BaselineID      string                  `json:"baseline_id"`
-	BaselineRange   dataset.TimeRange       `json:"baseline_range"`
-	BaselineRowCount int                    `json:"baseline_row_count"`
-	Baseline        analysis.BaselineDist   `json:"baseline"`
-	Bounds          analysis.Bounds         `json:"bounds"`
-	Subject         analysis.SubjectSummary `json:"subject"`
-	PointsOutside   int                     `json:"points_outside"`
-	PctOutside      float64                 `json:"pct_outside"`
-	TotalEpisodes   int                     `json:"total_episodes"`
-	Episodes        []EpisodeOut            `json:"episodes"`
-	Unit            string                  `json:"unit,omitempty"`
-	Caveats         []string                `json:"caveats"`
+	ID               string                  `json:"id"`
+	RowCount         int                     `json:"row_count"`
+	AnalyzedRange    dataset.TimeRange       `json:"analyzed_range"`
+	BaselineID       string                  `json:"baseline_id"`
+	BaselineRange    dataset.TimeRange       `json:"baseline_range"`
+	BaselineRowCount int                     `json:"baseline_row_count"`
+	Baseline         analysis.BaselineDist   `json:"baseline"`
+	Bounds           analysis.Bounds         `json:"bounds"`
+	Subject          analysis.SubjectSummary `json:"subject"`
+	PointsOutside    int                     `json:"points_outside"`
+	PctOutside       float64                 `json:"pct_outside"`
+	TotalEpisodes    int                     `json:"total_episodes"`
+	Episodes         []EpisodeOut            `json:"episodes"`
+	Unit             string                  `json:"unit,omitempty"`
+	Caveats          []string                `json:"caveats"`
 }
 
 // CompareToBaseline scores a subject window against a baseline distribution
